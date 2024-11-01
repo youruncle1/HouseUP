@@ -44,9 +44,9 @@ export default function App() {
     return (
         <NavigationContainer>
             <Tab.Navigator initialRouteName="ChoresTab">
-                <Tab.Screen name="ChoresTab" component={ChoresStack} options={{ title: 'HOUSEHOLD PORNO' }} />
-                <Tab.Screen name="ShoppingListTab" component={ShoppingListStack} options={{ title: 'Shopping List' }} />
-                <Tab.Screen name="DebtTab" component={DebtStack} options={{ title: 'Debt' }} />
+                <Tab.Screen name="ChoresTab" component={ChoresStack} options={{ title: 'HOUSEHOLD PORNO', headerShown: false }} />
+                <Tab.Screen name="ShoppingListTab" component={ShoppingListStack} options={{ title: 'Shopping List', headerShown: false }} />
+                <Tab.Screen name="DebtTab" component={DebtStack} options={{ title: 'Debt', headerShown: false }} />
             </Tab.Navigator>
         </NavigationContainer>
     );
