@@ -1,29 +1,42 @@
 // backend/index.js
+
 const express = require('express');
 const cors = require('cors');
+const bodyParser = require('body-parser');
+const admin = require('firebase-admin');
+
+// Initialize Firebase Admin SDK
+const serviceAccount = require('./serviceAccountKey.json');
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+});
+
+const db = admin.firestore();
 
 const app = express();
 const PORT = 3000;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
-
-// In-memory data store (for prototyping)
-let chores = [];
-let idCounter = 1;
+app.use(bodyParser.json());
 
 // Routes
-app.get('/chores', (req, res) => {
-    res.json(chores);
+app.get('/', (req, res) => {
+    res.send('Backend server is running');
 });
 
-app.post('/chores', (req, res) => {
-    const chore = { id: idCounter++, name: req.body.name };
-    chores.push(chore);
-    res.status(201).json(chore);
-});
+// Import routes
+const debtsRoutes = require('./routes/debts');
+const choresRoutes = require('./routes/chores');
+const shoppingListRoutes = require('./routes/shoppingList');
 
+// Use routes
+app.use('/debts', debtsRoutes);
+app.use('/chores', choresRoutes);
+app.use('/shopping-list', shoppingListRoutes);
+
+// Start the server
 app.listen(PORT, () => {
     console.log(`Backend server is running on http://localhost:${PORT}`);
 });
