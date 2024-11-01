@@ -9,8 +9,19 @@ import {
     Modal,
     Button,
     StyleSheet,
+    Image,
 } from 'react-native';
 import api from '../services/api';
+import { Ionicons } from '@expo/vector-icons';
+
+//global styling
+const colors = {
+    primary: '#741ded',
+    secondary: '#6200ee',
+    background: '#f7f7f7',
+    text: '#333',
+    error: '#b00020',
+};
 
 export default function ShoppingListScreen() {
     const [items, setItems] = useState([]);
@@ -120,71 +131,67 @@ export default function ShoppingListScreen() {
 
     const renderItem = ({ item }) => (
         <View style={styles.itemContainer}>
-            <View style={styles.itemInfo}>
-                <Text
-                    style={[
-                        styles.itemName,
-                        item.purchased && styles.purchasedItemText,
-                    ]}
-                >
-                    {item.name}
-                </Text>
-                <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
-            </View>
-            <View style={styles.itemActions}>
-                {!item.purchased && (
-                    <TouchableOpacity
-                        style={styles.purchaseButton}
-                        onPress={() => purchaseItem(item.id)}
-                    >
-                        <Text style={styles.buttonText}>Purchased</Text>
-                    </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                    style={styles.editButton}
-                    onPress={() => openEditModal(item)}
-                >
-                    <Text style={styles.buttonText}>Edit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => deleteItem(item.id)}
-                >
-                    <Text style={styles.buttonText}>Delete</Text>
-                </TouchableOpacity>
-            </View>
+            {/* Checkbox */}
+            <TouchableOpacity
+                style={[
+                    styles.checkbox,
+                    { backgroundColor: item.purchased ? colors.primary : 'transparent' }
+                ]}
+                onPress={() => purchaseItem(item.id)}
+            >
+                {item.purchased && <Ionicons name="checkmark" size={18} color="white" />}
+            </TouchableOpacity>
+
+            {/* Item */}
+            <Text style={[styles.itemName, item.purchased && styles.purchasedItemText]}>
+                {item.name}
+            </Text>
+
+            {/* Quantity */}
+            <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
+
+            {/* User profile pic */}
+            <Image
+                source={{ uri: item.userImage || 'https://static.vecteezy.com/system/resources/previews/019/879/186/non_2x/user-icon-on-transparent-background-free-png.png' }}
+                style={styles.profileImage}
+            />
+
+            {/* Delete */}
+            <TouchableOpacity onPress={() => deleteItem(item.id)}>
+                <Ionicons name="close-circle" size={24} color="red" />
+            </TouchableOpacity>
         </View>
     );
 
     return (
         <View style={styles.container}>
+            {/* Header Section */}
             <View style={styles.header}>
-                <Text style={styles.title}>Shopping List</Text>
+                <Text style={styles.householdName}>Household123</Text>
+                <Text style={styles.itemCounter}>2/6 items are bought</Text>
             </View>
-            <FlatList
-                data={items}
-                keyExtractor={(item) => item.id}
-                renderItem={renderItem}
-                style={styles.list}
-            />
-            <View style={styles.form}>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Item name"
-                    value={newItemName}
-                    onChangeText={setNewItemName}
-                />
-                <TextInput
-                    style={styles.input}
-                    placeholder="Quantity (default 1)"
-                    value={newItemQuantity}
-                    onChangeText={setNewItemQuantity}
-                    keyboardType="numeric"
-                />
-                <TouchableOpacity style={styles.addButton} onPress={addItem}>
-                    <Text style={styles.addButtonText}>Add Item</Text>
+
+            {/* Shopping List Title with Settings Button */}
+            <View style={styles.listHeader}>
+                <Text style={styles.listTitle}>Shopping list:</Text>
+                <TouchableOpacity style={styles.listSettings} onPress={() => console.log('Settings button pressed')}>
+                    <Ionicons name="settings-outline" size={24} style={styles.settingsIcon} />
                 </TouchableOpacity>
             </View>
+
+            {/* Shopping List */}
+            <View style={styles.listContainer}>
+                <FlatList
+                    data={items}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderItem}
+                />
+            </View>
+
+            {/* Add Item Button */}
+            <TouchableOpacity style={styles.addButton} onPress={() => setIsModalVisible(true)}>
+                <Ionicons name="add" size={36} color="white" />
+            </TouchableOpacity>
 
             {/* Edit Modal */}
             <Modal
@@ -195,14 +202,21 @@ export default function ShoppingListScreen() {
             >
                 <View style={styles.modalContainer}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Edit Item</Text>
+                        <Text style={styles.modalTitle}>Add/Edit Item</Text>
                         <TextInput
                             style={styles.input}
                             placeholder="Item name"
-                            value={editName}
-                            onChangeText={setEditName}
+                            value={newItemName}
+                            onChangeText={setNewItemName}
                         />
-                        <Button title="Save" onPress={saveEdit} />
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Quantity (default 1)"
+                            value={newItemQuantity}
+                            onChangeText={setNewItemQuantity}
+                            keyboardType="numeric"
+                        />
+                        <Button title="Save" onPress={addItem} />
                         <Button
                             title="Cancel"
                             onPress={() => setIsModalVisible(false)}
@@ -221,34 +235,61 @@ const styles = StyleSheet.create({
         backgroundColor: '#f7f7f7',
     },
     header: {
-        paddingTop: 50,
-        paddingBottom: 10,
-        backgroundColor: '#6200ee',
+        backgroundColor: colors.primary,
+        padding: 15,
         alignItems: 'center',
     },
-    title: {
+    householdName: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#fff',
     },
-    list: {
+    itemCounter: {
+        fontSize: 16,
+        marginTop: 5,
+    },
+    listHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 10,
+        paddingVertical: 10,
+    },
+    listTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
         flex: 1,
+        paddingTop: 20,
+    },
+    listSettings: {
+        padding: 10,
+    },
+    settingsIcon: {
+        color: 'black',
+    },
+    listContainer: {
+        paddingHorizontal: 15,
     },
     itemContainer: {
-        backgroundColor: '#fff',
-        padding: 15,
-        marginHorizontal: 15,
-        marginTop: 10,
-        borderRadius: 8,
-        elevation: 1,
-    },
-    itemInfo: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#e0e0e0',
+        padding: 10,
+        borderRadius: 8,
+        marginVertical: 5,
+    },
+    checkbox: {
+        width: 24,
+        height: 24,
+        borderRadius: 5,
+        borderWidth: 2,
+        borderColor: colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 10,
     },
     itemName: {
-        fontSize: 18,
-        color: '#333',
+        fontSize: 16,
+        flex: 1,
     },
     purchasedItemText: {
         textDecorationLine: 'line-through',
@@ -256,61 +297,24 @@ const styles = StyleSheet.create({
     },
     itemQuantity: {
         fontSize: 16,
-        color: '#666',
+        marginLeft: 10,
     },
-    itemActions: {
-        flexDirection: 'row',
-        marginTop: 10,
-        justifyContent: 'flex-end',
-    },
-    purchaseButton: {
-        backgroundColor: '#03dac5',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 5,
-        marginRight: 10,
-    },
-    editButton: {
-        backgroundColor: '#007bff',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 5,
-        marginRight: 10,
-    },
-    deleteButton: {
-        backgroundColor: '#dc3545',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 5,
-    },
-    buttonText: {
-        color: '#fff',
-        fontSize: 16,
-    },
-    form: {
-        padding: 15,
-        backgroundColor: '#fff',
-        borderTopColor: '#ddd',
-        borderTopWidth: 1,
-    },
-    input: {
-        borderColor: '#ddd',
-        borderWidth: 1,
-        paddingHorizontal: 15,
-        paddingVertical: 10,
-        borderRadius: 5,
-        marginBottom: 10,
-        fontSize: 16,
+    profileImage: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        marginHorizontal: 10,
     },
     addButton: {
-        backgroundColor: '#6200ee',
-        paddingVertical: 12,
-        borderRadius: 5,
+        backgroundColor: colors.primary,
+        borderRadius: 30,
+        width: 60,
+        height: 60,
+        justifyContent: 'center',
         alignItems: 'center',
-    },
-    addButtonText: {
-        color: '#fff',
-        fontSize: 18,
+        position: 'absolute',
+        bottom: 30,
+        alignSelf: 'center',
     },
     modalContainer: {
         flex: 1,
@@ -328,5 +332,14 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
         marginBottom: 15,
+    },
+    input: {
+        borderColor: '#ddd',
+        borderWidth: 1,
+        paddingHorizontal: 15,
+        paddingVertical: 10,
+        borderRadius: 5,
+        marginBottom: 10,
+        fontSize: 16,
     },
 });
