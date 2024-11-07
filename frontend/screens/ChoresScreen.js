@@ -8,13 +8,18 @@ import {
     Alert,
     Button,
     StyleSheet,
+    Image,
 } from 'react-native';
 import api from '../services/api';
+import styles from '../styles/ChoresStyles';
+import colors from '../styles/MainStyles';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function ChoresScreen() {
     const [chores, setChores] = useState([]);
     const [newChore, setNewChore] = useState('');
     const [assignedTo, setAssignedTo] = useState('');
+    const [showForm, setShowForm] = useState(false);
 
     useEffect(() => {
         fetchChores();
@@ -52,6 +57,7 @@ export default function ChoresScreen() {
                     onPress: async () => {
                         try {
                             await api.put(`/chores/${id}/complete`);
+                            await api.delete(`/chores/${id}`);
                             fetchChores();
                         } catch (error) {
                             console.error('Error completing chore:', error);
@@ -63,73 +69,62 @@ export default function ChoresScreen() {
         );
     };
 
-    const deleteChore = (id) => {
-        Alert.alert(
-            'Delete Chore',
-            'Are you sure you want to delete this chore?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await api.delete(`/chores/${id}`);
-                            fetchChores();
-                        } catch (error) {
-                            console.error('Error deleting chore:', error);
-                        }
-                    },
-                },
-            ],
-            { cancelable: false }
-        );
-    };
 
     const renderChoreItem = ({ item }) => (
         <View style={styles.choreItem}>
-            <Text
-                style={[
-                    styles.choreText,
-                    item.completed && styles.completedChoreText,
-                ]}
-            >
-                {item.name}
-            </Text>
+                        <Image
+                source={{ uri: item.userImage || 'https://static.vecteezy.com/system/resources/previews/019/879/186/non_2x/user-icon-on-transparent-background-free-png.png' }}
+                style={styles.profileImage}
+            />
+            <View style={styles.choreTextContainer}>
             <Text style={styles.choreAssignedTo}>
-                Assigned to: {item.assignedTo || 'Unassigned'}
-            </Text>
-            <View style={styles.choreActions}>
-                {!item.completed && (
-                    <TouchableOpacity
-                        style={styles.completeButton}
-                        onPress={() => completeChore(item.id)}
-                    >
-                        <Text style={styles.buttonText}>Complete</Text>
-                    </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => deleteChore(item.id)}
+                {item.assignedTo || 'Unassigned'}
+                </Text>
+                <Text
+                    style={[
+                        styles.choreText,
+                        item.completed && styles.completedChoreText,
+                    ]}
                 >
-                    <Text style={styles.buttonText}>Delete</Text>
-                </TouchableOpacity>
+                    {item.name}
+                </Text>
+
             </View>
+            {!item.completed && (
+                <TouchableOpacity
+                    style={styles.completeButton}
+                    onPress={() => completeChore(item.id)}
+                >
+                    <Text style={styles.buttonText}>Done</Text>
+                </TouchableOpacity>
+            )}
         </View>
     );
 
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.title}>Chores</Text>
+                <Text style={styles.HHname}>HouseHold123</Text>
+                <Text style={styles.choresDone}>2/3 chores done</Text>
+            </View>
+            <View style={styles.choresheader}>
+                <Text style={styles.headertext}>Chores Managment</Text>
+                <TouchableOpacity style={styles.listSettings} onPress={() => setShowForm(!showForm)}>
+                    <Ionicons name="settings-outline" size={24} style={styles.settingsIcon} />
+                </TouchableOpacity>
             </View>
             <FlatList
+            
                 data={chores}
                 keyExtractor={(item) => item.id}
+                
                 renderItem={renderChoreItem}
                 style={styles.list}
+
             />
-            <View style={styles.form}>
+
+            {showForm&&(//Pridavani dalsich chores 
+                <View style={styles.form}>
                 <TextInput
                     style={styles.input}
                     placeholder="Add a new chore"
@@ -146,96 +141,9 @@ export default function ChoresScreen() {
                     <Text style={styles.addButtonText}>Add Chore</Text>
                 </TouchableOpacity>
             </View>
+            )}
         </View>
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f7f7f7',
-    },
-    header: {
-        paddingTop: 50,
-        paddingBottom: 10,
-        backgroundColor: '#6200ee',
-        alignItems: 'center',
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#fff',
-    },
-    list: {
-        flex: 1,
-    },
-    choreItem: {
-        backgroundColor: '#fff',
-        padding: 15,
-        marginHorizontal: 15,
-        marginTop: 10,
-        borderRadius: 8,
-        elevation: 1,
-    },
-    choreText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#333',
-    },
-    completedChoreText: {
-        textDecorationLine: 'line-through',
-        color: '#999',
-    },
-    choreAssignedTo: {
-        fontSize: 14,
-        color: '#555',
-        marginTop: 5,
-    },
-    choreActions: {
-        flexDirection: 'row',
-        marginTop: 10,
-        justifyContent: 'flex-end',
-    },
-    completeButton: {
-        backgroundColor: '#03dac5',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 5,
-        marginRight: 10,
-    },
-    deleteButton: {
-        backgroundColor: '#dc3545',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 5,
-    },
-    buttonText: {
-        color: '#fff',
-        fontSize: 16,
-    },
-    form: {
-        padding: 15,
-        backgroundColor: '#fff',
-        borderTopColor: '#ddd',
-        borderTopWidth: 1,
-    },
-    input: {
-        borderColor: '#ddd',
-        borderWidth: 1,
-        paddingHorizontal: 15,
-        paddingVertical: 10,
-        borderRadius: 5,
-        marginBottom: 10,
-        fontSize: 16,
-    },
-    addButton: {
-        backgroundColor: '#6200ee',
-        paddingVertical: 12,
-        borderRadius: 5,
-        alignItems: 'center',
-    },
-    addButtonText: {
-        color: '#fff',
-        fontSize: 18,
-    },
-});
+
