@@ -8,6 +8,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import ChoresScreen from './screens/ChoresScreen';
 import ShoppingListScreen from './screens/ShoppingListScreen';
+import ShoppingListScreen_AddItem from './screens/ShoppingListScreen_AddItem';
 import DebtScreen from './screens/DebtScreen';
 
 const Stack = createNativeStackNavigator();
@@ -30,6 +31,7 @@ function ShoppingListStack() {
         <Stack.Navigator>
             <Stack.Screen name="ShoppingListHome" component={ShoppingListScreen} options={{ title: 'Shopping List' }} />
             {/* Additional screens for Shopping List can go here */}
+            <Stack.Screen name="AddItem" component={ShoppingListScreen_AddItem} options={{ title: 'Add Item' }} />
         </Stack.Navigator>
     );
 }
