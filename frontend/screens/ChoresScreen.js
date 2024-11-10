@@ -95,7 +95,7 @@ export default function ChoresScreen() {
                     style={styles.completeButton}
                     onPress={() => completeChore(item.id)}
                 >
-                    <Text style={styles.buttonText}>Done</Text>
+                    <Text style={styles.buttonText}>done</Text>
                 </TouchableOpacity>
             )}
         </View>
@@ -105,10 +105,10 @@ export default function ChoresScreen() {
         <View style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.HHname}>HouseHold123</Text>
-                <Text style={styles.choresDone}>2/3 chores done</Text>
+                <Text style={styles.choresDone}>2/6 chores done</Text>
             </View>
             <View style={styles.choresheader}>
-                <Text style={styles.headertext}>Chores Managment</Text>
+                <Text style={styles.headertext}>Chores Managment:</Text>
                 <TouchableOpacity style={styles.listSettings} onPress={() => setShowForm(!showForm)}>
                     <Ionicons name="settings-outline" size={24} style={styles.settingsIcon} />
                 </TouchableOpacity>

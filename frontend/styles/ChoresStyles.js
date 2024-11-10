@@ -55,17 +55,12 @@ const styles = StyleSheet.create({
         flexDirection: 'column',     // Stack the text elements vertically
     },
     choreText: {
-        padding:10,
+        padding:5,
         fontSize: 16,                // Adjust font size as needed
         color: '#333',
     },
     headertext:{
         marginTop:15,
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#333',
-    },
-    choreText: {
         fontSize: 18,
         fontWeight: 'bold',
         color: '#333',
@@ -130,9 +125,11 @@ const styles = StyleSheet.create({
         fontSize: 18,
     },
     profileImage: {
-        width: 30,
-        height: 30,
+        width: 45,
+        height: 45,
         borderRadius: 15,
         marginHorizontal: 10,
     },
 });
+
+export default styles;
