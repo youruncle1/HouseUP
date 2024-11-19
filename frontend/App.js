@@ -10,6 +10,9 @@ import ChoresScreen from './screens/ChoresScreen';
 import ShoppingListScreen from './screens/ShoppingListScreen';
 import ShoppingListScreen_AddItem from './screens/ShoppingListScreen_AddItem';
 import DebtScreen from './screens/DebtScreen';
+import DebtFormScreen from './screens/DebtFormScreen';
+import RecurringDebtsScreen from './screens/RecurringDebtsScreen';
+import TransactionsScreen from './screens/TransactionsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -40,6 +43,9 @@ function DebtStack() {
     return (
         <Stack.Navigator>
             <Stack.Screen name="DebtHome" component={DebtScreen} options={{ title: 'Debt' }} />
+            <Stack.Screen name="DebtForm" component={DebtFormScreen} options={{ title: 'Debt Form' }} />
+            <Stack.Screen name="RecurringDebts" component={RecurringDebtsScreen} />
+            <Stack.Screen name="Transactions" component={TransactionsScreen} />
             {/* Additional screens for Debt can go here */}
         </Stack.Navigator>
     );

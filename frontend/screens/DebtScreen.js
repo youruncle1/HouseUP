@@ -1,84 +1,123 @@
 // screens/DebtScreen.js
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
     FlatList,
-    TextInput,
     TouchableOpacity,
     Alert,
     StyleSheet,
     KeyboardAvoidingView,
-    Platform,
     ScrollView,
+    Platform,
 } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import api from '../services/api';
 
 export default function DebtScreen() {
+    const navigation = useNavigation();
     const [debts, setDebts] = useState([]);
-    const [creditor, setCreditor] = useState('');
-    const [debtor, setDebtor] = useState('');
-    const [amount, setAmount] = useState('');
-    const [description, setDescription] = useState('');
+    const [transactions, setTransactions] = useState([]);
+    const [showAllTransactions, setShowAllTransactions] = useState(false);
+    const [recurringDebts, setRecurringDebts] = useState([]);
 
-    useEffect(() => {
-        fetchDebts();
-    }, []);
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchDebts();
+        }, [])
+    );
+
+    const getTimestampValue = (timestamp) => {
+        if (timestamp) {
+            if (typeof timestamp === 'string') {
+                const time = new Date(timestamp).getTime();
+                if (!isNaN(time)) {
+                    return time;
+                }
+            }
+        }
+        return null;
+    };
 
     const fetchDebts = async () => {
         try {
             const response = await api.get('/debts');
-            setDebts(response.data);
+            const allDebts = response.data;
+
+            // Exclude recurring debt templates
+            const filteredDebts = allDebts.filter((debt) => !debt.isRecurring);
+
+            // Proceed with existing processing using filteredDebts
+
+            // Group debts by debtor and creditor
+            const debtSummary = {};
+            filteredDebts.forEach((debt) => {
+                if (!debt.isSettled) {
+                    const key = `${debt.debtor}->${debt.creditor}`;
+                    if (debtSummary[key]) {
+                        debtSummary[key] += debt.amount;
+                    } else {
+                        debtSummary[key] = debt.amount;
+                    }
+                }
+            });
+
+            // Convert debtSummary to an array for rendering
+            const debtList = Object.keys(debtSummary).map((key) => {
+                const [debtor, creditor] = key.split('->');
+                return {
+                    debtor,
+                    creditor,
+                    amount: debtSummary[key],
+                };
+            });
+
+            // Sort all transactions (settled and unsettled) by timestamp (newest first)
+            const sortedTransactions = filteredDebts
+                .filter((debt) => getTimestampValue(debt.timestamp))
+                .sort((a, b) => {
+                    const timeA = getTimestampValue(a.timestamp);
+                    const timeB = getTimestampValue(b.timestamp);
+                    return timeB - timeA;
+                });
+
+            // Fetch recurring debts
+            const recurringResponse = await api.get('/debts/recurring');
+            const recurringDebtsData = recurringResponse.data;
+
+            // Sort recurring debts by nextPaymentDate
+            recurringDebtsData.sort((a, b) => {
+                const dateA = new Date(a.nextPaymentDate);
+                const dateB = new Date(b.nextPaymentDate);
+                return dateA - dateB;
+            });
+
+            // Set the processed data to state variables
+            setDebts(debtList);
+            setTransactions(sortedTransactions);
+            setRecurringDebts(recurringDebtsData);
         } catch (error) {
             console.error('Error fetching debts:', error);
         }
     };
 
-    const addDebt = async () => {
-        if (
-            creditor.trim() === '' ||
-            debtor.trim() === '' ||
-            amount.trim() === ''
-        ) {
-            alert('Please fill in all required fields.');
-            return;
-        }
 
-        const amountValue = parseFloat(amount);
-        if (isNaN(amountValue) || amountValue <= 0) {
-            alert('Please enter a valid amount greater than zero.');
-            return;
-        }
-
-        try {
-            await api.post('/debts', {
-                creditor,
-                debtor,
-                amount: amountValue,
-                description,
-            });
-            setCreditor('');
-            setDebtor('');
-            setAmount('');
-            setDescription('');
-            fetchDebts();
-        } catch (error) {
-            console.error('Error adding debt:', error);
-        }
-    };
-
-    const settleDebt = (id) => {
+    const settleDebt = (item) => {
         Alert.alert(
             'Settle Debt',
-            'Are you sure you want to settle this debt?',
+            `Are you sure you want to settle all debts from ${item.debtor} to ${item.creditor}?`,
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
                     text: 'Yes',
                     onPress: async () => {
                         try {
-                            await api.put(`/debts/${id}/settle`);
+                            await api.post('/debts/settle', {
+                                debtor: item.debtor,
+                                creditor: item.creditor,
+                            });
                             fetchDebts();
                         } catch (error) {
                             console.error('Error settling debt:', error);
@@ -90,29 +129,68 @@ export default function DebtScreen() {
         );
     };
 
-    const renderDebtItem = ({ item }) => (
-        <View style={styles.debtItem}>
-            <View style={styles.debtInfo}>
-                <Text style={styles.debtText}>
-                    {item.debtor} owes {item.creditor}
-                </Text>
-                <Text style={styles.amountText}>${item.amount.toFixed(2)}</Text>
+    const renderDebtSummaryItem = ({ item }) => (
+        <TouchableOpacity onPress={() => settleDebt(item)}>
+            <View style={styles.debtItem}>
+                <View style={styles.debtInfo}>
+                    <Text style={styles.debtText}>
+                        {item.debtor} owes {item.creditor}
+                    </Text>
+                    <Text style={styles.amountText}>${item.amount.toFixed(2)}</Text>
+                </View>
             </View>
-            {item.description ? (
-                <Text style={styles.debtDescription}>{item.description}</Text>
-            ) : null}
-            {!item.isSettled ? (
-                <TouchableOpacity
-                    style={styles.settleButton}
-                    onPress={() => settleDebt(item.id)}
-                >
-                    <Text style={styles.settleButtonText}>Settle Debt</Text>
-                </TouchableOpacity>
-            ) : (
-                <Text style={styles.settledText}>Settled</Text>
-            )}
-        </View>
+        </TouchableOpacity>
     );
+
+    const renderRecurringDebtItem = ({ item }) => {
+        const nextPaymentDate = new Date(item.nextPaymentDate).toLocaleDateString();
+        return (
+            <TouchableOpacity onPress={() => navigation.navigate('DebtForm', { mode: 'edit', debt: item })}>
+                <View style={styles.debtItem}>
+                    <View style={styles.debtInfo}>
+                        <Text style={styles.debtText}>
+                            {item.debtor} owes {item.creditor}
+                        </Text>
+                        <Text style={styles.amountText}>${item.amount.toFixed(2)}</Text>
+                    </View>
+                    {item.description ? (
+                        <Text style={styles.debtDescription}>{item.description}</Text>
+                    ) : null}
+                    <Text style={styles.settledText}>
+                        Next Payment Date: {nextPaymentDate}
+                    </Text>
+                </View>
+            </TouchableOpacity>
+        );
+    };
+
+    const renderTransactionItem = ({ item }) => {
+        let dateString = 'Unknown Date';
+
+        const timestampValue = getTimestampValue(item.timestamp);
+
+        if (timestampValue) {
+            const date = new Date(timestampValue);
+            dateString = date.toLocaleDateString();
+        }
+
+        return (
+            <TouchableOpacity onPress={() => navigation.navigate('DebtForm', { mode: 'edit', debt: item })}>
+                <View style={styles.debtItem}>
+                    <View style={styles.debtInfo}>
+                        <Text style={styles.debtText}>
+                            {item.debtor} {item.isSettled ? 'paid' : 'owes'} {item.creditor}
+                        </Text>
+                        <Text style={styles.amountText}>${item.amount.toFixed(2)}</Text>
+                    </View>
+                    {item.description ? (
+                        <Text style={styles.debtDescription}>{item.description}</Text>
+                    ) : null}
+                    <Text style={styles.settledText}>On {dateString}</Text>
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <KeyboardAvoidingView
@@ -122,44 +200,82 @@ export default function DebtScreen() {
             <View style={styles.header}>
                 <Text style={styles.title}>Debt Settlement</Text>
             </View>
-            <FlatList
-                data={debts}
-                keyExtractor={(item) => item.id}
-                renderItem={renderDebtItem}
-                style={styles.debtList}
-                contentContainerStyle={{ paddingBottom: 20 }}
-            />
-            <View style={styles.form}>
-                <Text style={styles.formTitle}>Add New Debt</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Creditor"
-                    value={creditor}
-                    onChangeText={setCreditor}
-                />
-                <TextInput
-                    style={styles.input}
-                    placeholder="Debtor"
-                    value={debtor}
-                    onChangeText={setDebtor}
-                />
-                <TextInput
-                    style={styles.input}
-                    placeholder="Amount"
-                    value={amount}
-                    onChangeText={setAmount}
-                    keyboardType="numeric"
-                />
-                <TextInput
-                    style={styles.input}
-                    placeholder="Description (Optional)"
-                    value={description}
-                    onChangeText={setDescription}
-                />
-                <TouchableOpacity style={styles.addButton} onPress={addDebt}>
-                    <Text style={styles.addButtonText}>Add Debt</Text>
-                </TouchableOpacity>
-            </View>
+            <ScrollView style={styles.scrollContainer}>
+                {/* Debts Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Debts</Text>
+                    {debts.length === 0 ? (
+                        <Text style={styles.noDataText}>No outstanding debts.</Text>
+                    ) : (
+                        <FlatList
+                            data={debts}
+                            keyExtractor={(item, index) => index.toString()}
+                            renderItem={renderDebtSummaryItem}
+                            scrollEnabled={false}
+                            contentContainerStyle={{ paddingBottom: 10 }}
+                        />
+                    )}
+                </View>
+
+                {/* Recent Payments Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Recent Payments</Text>
+                    {transactions.length === 0 ? (
+                        <Text style={styles.noDataText}>No transactions found.</Text>
+                    ) : (
+                        <>
+                            <FlatList
+                                data={transactions.slice(0, 2)}
+                                keyExtractor={(item) => item.id}
+                                renderItem={renderTransactionItem}
+                                scrollEnabled={false}
+                                contentContainerStyle={{ paddingBottom: 10 }}
+                            />
+                            {transactions.length > 2 && (
+                                <TouchableOpacity
+                                    onPress={() => navigation.navigate('Transactions')}
+                                    style={styles.showMoreButton}
+                                >
+                                    <Text style={styles.showMoreText}>Show More</Text>
+                                </TouchableOpacity>
+                            )}
+                        </>
+                    )}
+                </View>
+                {/* Upcoming Recurring Payments Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Upcoming Recurring Payments</Text>
+                    {recurringDebts.length === 0 ? (
+                        <Text style={styles.noDataText}>No upcoming recurring payments.</Text>
+                    ) : (
+                        <>
+                            <FlatList
+                                data={recurringDebts.slice(0, 1)} // Show the closest upcoming payment
+                                keyExtractor={(item) => item.id}
+                                renderItem={renderRecurringDebtItem}
+                                scrollEnabled={false}
+                                contentContainerStyle={{ paddingBottom: 10 }}
+                            />
+                            {recurringDebts.length > 1 && (
+                                <TouchableOpacity
+                                    onPress={() => navigation.navigate('RecurringDebts')}
+                                    style={styles.showMoreButton}
+                                >
+                                    <Text style={styles.showMoreText}>Show More</Text>
+                                </TouchableOpacity>
+                            )}
+                        </>
+                    )}
+                </View>
+            </ScrollView>
+
+            {/* Floating Add Button */}
+            <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => navigation.navigate('DebtForm', { mode: 'add' })}
+            >
+                <Ionicons name="add" size={36} color="white" />
+            </TouchableOpacity>
         </KeyboardAvoidingView>
     );
 }
@@ -170,9 +286,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#f7f7f7',
     },
     header: {
-        paddingTop: 50,
+        paddingTop: 20,
         paddingBottom: 10,
-        backgroundColor: '#6200ee',
+        backgroundColor: '#741ded',
         alignItems: 'center',
     },
     title: {
@@ -184,7 +300,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     debtItem: {
-        backgroundColor: '#fff',
+        backgroundColor: '#e0e0e0',
         padding: 15,
         marginHorizontal: 15,
         marginTop: 10,
@@ -252,12 +368,45 @@ const styles = StyleSheet.create({
     },
     addButton: {
         backgroundColor: '#6200ee',
-        paddingVertical: 12,
-        borderRadius: 5,
+        borderRadius: 30,
+        width: 60,
+        height: 60,
+        justifyContent: 'center',
         alignItems: 'center',
+        position: 'absolute',
+        bottom: 30,
+        alignSelf: 'center',
     },
     addButtonText: {
         color: '#fff',
         fontSize: 18,
+    },
+    scrollContainer: {
+        flex: 1,
+    },
+    section: {
+        marginTop: 20,
+        paddingHorizontal: 15,
+    },
+    sectionTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#6200ee',
+        marginBottom: 10,
+    },
+    noDataText: {
+        fontSize: 16,
+        color: '#666',
+        textAlign: 'center',
+        marginTop: 10,
+    },
+    showMoreButton: {
+        alignItems: 'center',
+        paddingVertical: 10,
+    },
+    showMoreText: {
+        color: '#6200ee',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
 });
