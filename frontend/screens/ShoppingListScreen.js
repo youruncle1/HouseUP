@@ -3,12 +3,8 @@ import {
     View,
     Text,
     FlatList,
-    TextInput,
     TouchableOpacity,
     Alert,
-    Modal,
-    Button,
-    StyleSheet,
     Image,
 } from 'react-native';
 import api from '../services/api';
@@ -16,21 +12,25 @@ import styles from '../styles/ShoppingListStyles';
 import colors from '../styles/MainStyles';
 
 import { useIsFocused } from '@react-navigation/native';
+import { useAppContext } from '../AppContext';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 export default function ShoppingListScreen({ navigation }) {
     const [items, setItems] = useState([]);
     const isFocused = useIsFocused();
+    const { currentHousehold } = useAppContext();
 
     useEffect(() => {
-        if (isFocused) {
-            fetchItems(); // Fetch items whenever the screen is focused
+        if (isFocused || currentHousehold) {
+            fetchItems(); // Fetch items when the screen is focused or the household changes
         }
-    }, [isFocused]);
+    }, [isFocused, currentHousehold]);
 
     const fetchItems = async () => {
+        if (!currentHousehold?.id) return; // Ensure a household is selected
+
         try {
-            const response = await api.get('/shopping-list');
+            const response = await api.get(`/shopping-list?householdId=${currentHousehold.id}`);
             setItems(response.data);
         } catch (error) {
             console.error('Error fetching shopping list items:', error);
@@ -120,8 +120,13 @@ export default function ShoppingListScreen({ navigation }) {
         <View style={styles.container}>
             {/* Header Section */}
             <View style={styles.header}>
-                <Text style={styles.householdName}>Household123</Text>
-                <Text style={styles.itemCounter}>2/6 items are bought</Text>
+                <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
+                    <Ionicons name="menu" size={24} color="white" />
+                </TouchableOpacity>
+                <View style={styles.headerContent}>
+                    <Text style={styles.householdName}>{currentHousehold?.name || 'No Household Selected'}</Text>
+                    <Text style={styles.itemCounter}>{items.filter((item) => item.purchased).length}/{items.length} items are bought</Text>
+                </View>
             </View>
 
             {/* Shopping List Title + Settings Button */}

@@ -10,16 +10,32 @@ const styles = StyleSheet.create({
     header: {
         backgroundColor: colors.primary,
         padding: 15,
+        flexDirection: 'row', // Align elements horizontally
         alignItems: 'center',
+        justifyContent: 'space-between', // Space menu button and center content properly
+    },
+    headerContent: {
+        position: 'absolute', // Position it relative to the header
+        left: 0, // Reset alignment
+        right: 0, // Take the full width of the header
+        alignItems: 'center', // Center the content horizontally
     },
     householdName: {
         fontSize: 24,
         fontWeight: 'bold',
+        color: 'white',
     },
     itemCounter: {
         fontSize: 16,
+        color: 'white',
         marginTop: 5,
     },
+    menuButton: {
+        padding: 10, // Ensure touchable area for the button
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
     listHeader: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -74,7 +90,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         width: 50,
         marginRight: 10,
-
     },
     profileImage: {
         width: 30,
@@ -93,7 +108,6 @@ const styles = StyleSheet.create({
         bottom: 30,
         alignSelf: 'center',
     },
-
     addNewItemButton: {
         backgroundColor: colors.primary,
         borderRadius: 25, // Rounded corners for a rectangle shape
@@ -110,7 +124,6 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
     },
-
     input: {
         borderColor: '#ddd',
         borderWidth: 1,
@@ -120,7 +133,6 @@ const styles = StyleSheet.create({
         marginBottom: 10,
         fontSize: 16,
     },
-
 });
 
 export default styles;
