@@ -31,10 +31,16 @@ const debtsRoutes = require('./routes/debts');
 const choresRoutes = require('./routes/chores');
 const shoppingListRoutes = require('./routes/shoppingList');
 
+// ADD THIS: Importing the new users route file
+const usersRoutes = require('./routes/users');
+
 // Use routes
 app.use('/debts', debtsRoutes);
 app.use('/chores', choresRoutes);
 app.use('/shopping-list', shoppingListRoutes);
+
+// ADD THIS: Using the users route
+app.use('/users', usersRoutes);
 
 // Start the server
 app.listen(PORT, () => {

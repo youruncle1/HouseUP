@@ -10,6 +10,7 @@ import { AppProvider, useAppContext } from './AppContext';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import ChoresScreen from './screens/ChoresScreen';
+import AddChoreScreen from './screens/AddChoreScreen';
 import ShoppingListScreen from './screens/ShoppingListScreen';
 import ShoppingListScreen_AddItem from './screens/ShoppingListScreen_AddItem';
 import DebtScreen from './screens/DebtScreen';
@@ -22,16 +23,17 @@ import styles from './styles/DrawerStyles';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const Drawer = createDrawerNavigator();
-
 const primaryColor = '#741ded';
 
 // Create a stack navigator for each tab (if you plan to add more screens in each tab)
 function ChoresStack() {
     return (
-        <Stack.Navigator id={ChoresStack}>
+        // In the same stack navigator as ChoresScreen:
+        <Stack.Navigator>
             <Stack.Screen name="ChoresHome" component={ChoresScreen} options={{ title: 'Chores' }} />
-            {/* Additional screens for Chores can go here */}
+            <Stack.Screen name="AddChore" component={AddChoreScreen} options={{ title: 'Add Chore' }} />
         </Stack.Navigator>
+
     );
 }
 
