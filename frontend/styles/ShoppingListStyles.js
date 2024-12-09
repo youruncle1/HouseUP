@@ -108,6 +108,91 @@ const styles = StyleSheet.create({
         bottom: 30,
         alignSelf: 'center',
     },
+
+    // AddItemScreen Styles
+    scrollContainer: {
+        flex: 1,
+    },
+    scrollContent: {
+        paddingBottom: 250,
+    },
+    addlistContainer: {
+        flexDirection: 'column', // Set to 'column' to allow items to stack vertically
+        alignItems: 'stretch',  // Stretch items to take full width
+        borderRadius: 8,        // Retain rounded corners
+        marginVertical: 10,     // Add vertical margin to separate this section
+    },
+
+    additemContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#e0e0e0',
+        padding: 10,
+        paddingVertical: 13,
+        borderRadius: 15,
+        marginVertical: 5,
+        marginHorizontal:18,
+        justifyContent: 'space-between',
+    },
+
+    input: {
+        borderColor: colors.primary,
+        backgroundColor: '#ededed',
+        borderWidth: 2.5,
+        paddingHorizontal: 15,
+        paddingVertical: 12,
+        borderRadius: 25,
+        marginBottom: 10,
+        marginTop: 30,
+        marginHorizontal: 10,
+        fontSize: 16,
+    },
+    plusButton: {
+        width: 24,
+        height: 24,
+        borderRadius: 9,
+        borderWidth: 2,
+        backgroundColor: "#741ded",
+        borderColor: colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 10,
+    },
+    deleteButton: {
+        marginLeft: 10,
+    },
+
+    // Favorites
+    favoritesContainer: {
+        flexShrink: 1, // Ensures it only takes up as much space as needed
+    },
+    sectionHeader: {
+        fontSize: 18,
+        fontWeight: "bold",
+        marginTop: 20,
+        marginHorizontal: 15,
+        color: colors.text,
+    },
+
+    //Add to debts Switch
+    switchContainer: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingHorizontal: 15,
+        paddingVertical: 10,
+        backgroundColor: "#e0e0e0",
+        borderRadius: 8,
+        marginHorizontal: 15,
+        marginTop: 15,
+    },
+    switchLabel: {
+        fontSize: 16,
+        fontWeight: "500",
+        color: "#333",
+    },
+
+    // Add button
     addNewItemButton: {
         backgroundColor: colors.primary,
         borderRadius: 25, // Rounded corners for a rectangle shape
@@ -123,15 +208,6 @@ const styles = StyleSheet.create({
         color: '#fff', // White text color
         fontSize: 18,
         fontWeight: 'bold',
-    },
-    input: {
-        borderColor: '#ddd',
-        borderWidth: 1,
-        paddingHorizontal: 15,
-        paddingVertical: 10,
-        borderRadius: 5,
-        marginBottom: 10,
-        fontSize: 16,
     },
 });
 

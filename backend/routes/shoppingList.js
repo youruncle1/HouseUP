@@ -27,28 +27,50 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Add a new shopping list item for a specific household
+// Get all favorite shopping items for a specific household
+router.get('/:householdID/favouriteShopItems', async (req, res) => {
+    const { householdID } = req.params;
+
+    try {
+        const favoritesRef = db.collection('households')
+            .doc(householdID)
+            .collection('favouriteShopItems');
+        const snapshot = await favoritesRef.get();
+        const favorites = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+        res.status(200).json(favorites);
+    } catch (error) {
+        console.error('Error fetching favorite shopping items:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Add new shop items to shopping list for a specific household
 router.post('/', async (req, res) => {
-    const { name, quantity, householdId } = req.body;
+    const { items, householdId } = req.body;
     console.log('Received POST request for /shopping-list with data:', req.body);
 
-    if (!householdId) {
-        return res.status(400).json({ error: 'householdId is required' });
+    if (!householdId || !items || !Array.isArray(items)) {
+        return res.status(400).json({ error: 'householdId and an array of items are required' });
     }
 
     try {
-        const itemData = {
-            name,
-            quantity: quantity || 1, // Default quantity is 1
-            purchased: false,
-            householdId, // Associate the item with the household
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        };
-        const docRef = await db.collection('shoppingList').add(itemData);
-        console.log(`Added new item with ID: ${docRef.id} for householdId: ${householdId}`);
-        res.status(201).json({ id: docRef.id, ...itemData });
+        const batch = db.batch(); // Firestore batch operation
+        items.forEach(item => {
+            const itemRef = db.collection('shoppingList').doc();
+            batch.set(itemRef, {
+                name: item.name,
+                quantity: item.quantity || 1, // Default quantity is 1
+                purchased: false,
+                householdId, // Associate the item with the household
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        });
+
+        await batch.commit(); // Execute the batch operation
+        console.log(`${items.length} items added to householdId: ${householdId}`);
+        res.status(201).json({ message: `${items.length} items added successfully` });
     } catch (error) {
-        console.error('Error adding shopping list item:', error);
+        console.error('Error adding items to shopping list:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
