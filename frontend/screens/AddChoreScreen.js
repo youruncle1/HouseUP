@@ -1,34 +1,40 @@
 // frontend/screens/AddChoreScreen.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useAppContext } from '../AppContext';
 import api from '../services/api';
 import choresStyles from '../styles/ChoresStyles';
 import { Picker } from '@react-native-picker/picker';
+import { Ionicons } from '@expo/vector-icons';
 
 function getCurrentWeekIdentifier() {
     const now = new Date();
     const year = now.getUTCFullYear();
     const oneJan = new Date(year, 0, 1);
     const numberOfDays = Math.floor((now - oneJan) / (24 * 60 * 60 * 1000));
-    const week = Math.ceil((numberOfDays + oneJan.getUTCDay() + 1)/7);
+    const week = Math.ceil((numberOfDays + oneJan.getUTCDay()+1)/7);
     return `${year}-W${week}`;
 }
 
 export default function AddChoreScreen({ navigation }) {
     const { currentHousehold } = useAppContext();
 
-    // State for adding a default chore
+    // State for scheduled (default) chore
     const [choreName, setChoreName] = useState('');
+    const [frequencyDays, setFrequencyDays] = useState(''); // default 7 days (weekly)
 
-    // States for adding an immediate chore
+    // State for immediate chore
     const [newChore, setNewChore] = useState('');
     const [assignedUserId, setAssignedUserId] = useState('');
     const [usersList, setUsersList] = useState([]);
 
+    // State for default chores listing
+    const [defaultChores, setDefaultChores] = useState([]);
+
     useEffect(() => {
         if (currentHousehold) {
             fetchUsers();
+            fetchDefaultChores();
         }
     }, [currentHousehold]);
 
@@ -39,7 +45,6 @@ export default function AddChoreScreen({ navigation }) {
             });
             const data = res.data;
             setUsersList(data);
-            // If we have at least one user, preselect the first one
             if (data.length > 0) {
                 setAssignedUserId(data[0].id);
             }
@@ -48,11 +53,26 @@ export default function AddChoreScreen({ navigation }) {
         }
     }
 
+    async function fetchDefaultChores() {
+        try {
+            const res = await api.get(`/households/${currentHousehold.id}/defaultChores`);
+            setDefaultChores(res.data);
+        } catch (error) {
+            console.error('Error fetching default chores:', error);
+        }
+    }
+
     async function addDefaultChore() {
         if (!choreName.trim()) return;
+        if (!frequencyDays.trim()) return;
         try {
-            await api.post(`/households/${currentHousehold.id}/defaultChores`, { name: choreName });
+            await api.post(`/households/${currentHousehold.id}/defaultChores`, { 
+                name: choreName,
+                frequencyDays: parseInt(frequencyDays, 10) || 7
+            });
             setChoreName('');
+            setFrequencyDays('7');
+            fetchDefaultChores(); // Refresh after adding
         } catch (error) {
             console.error('Error adding default chore:', error);
         }
@@ -75,10 +95,34 @@ export default function AddChoreScreen({ navigation }) {
         }
     }
 
+    async function deleteDefaultChore(choreId) {
+        Alert.alert(
+            'Delete Chore',
+            'Are you sure you want to delete this scheduled chore?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Yes',
+                    onPress: async () => {
+                        try {
+                            await api.delete(`/households/${currentHousehold.id}/defaultChores/${choreId}`);
+                            fetchDefaultChores();
+                        } catch (error) {
+                            console.error('Error deleting default chore:', error);
+                        }
+                    },
+                },
+            ],
+            { cancelable: false }
+        );
+    }
+
     return (
         <View style={choresStyles.addChoreContainer}>
             <ScrollView>
-            <Text style={[choresStyles.addChoreTitle]}>Add a Chore</Text>
+
+                {/* Immediate Chore Section */}
+                <Text style={choresStyles.addChoreTitle}>Add a Chore</Text>
                 <View style={choresStyles.form}>
                     <TextInput
                         style={choresStyles.input}
@@ -87,11 +131,10 @@ export default function AddChoreScreen({ navigation }) {
                         onChangeText={setNewChore}
                     />
 
-                    {/* Dropdown (Picker) to select user by name */}
                     {usersList.length > 0 ? (
                         <Picker
                             selectedValue={assignedUserId}
-                            style={choresStyles.inputpicker}
+                            style={choresStyles.inputpicker || choresStyles.input}
                             onValueChange={(itemValue) => setAssignedUserId(itemValue)}
                         >
                             {usersList.map(user => (
@@ -106,19 +149,45 @@ export default function AddChoreScreen({ navigation }) {
                         <Text style={choresStyles.addButtonText}>Add Chore</Text>
                     </TouchableOpacity>
                 </View>
+
+                {/* Scheduled (Default) Chore Section */}
                 <Text style={choresStyles.addChoreTitle}>Add a New Scheduled Chore</Text>
                 <View style={choresStyles.form}>
-                <TextInput
-                    style={choresStyles.input}
-                    placeholder="Chore Name"
-                    value={choreName}
-                    onChangeText={setChoreName}
-                />
-                <TouchableOpacity style={choresStyles.addButton} onPress={addDefaultChore}>
-                    <Text style={choresStyles.addButtonText}>Add scheduled chore</Text>
-                </TouchableOpacity>
+                    <TextInput
+                        style={choresStyles.input}
+                        placeholder="Chore Name"
+                        value={choreName}
+                        onChangeText={setChoreName}
+                    />
+                    <TextInput
+                        style={choresStyles.input}
+                        placeholder="Frequency in days (e.g., 7)"
+                        value={frequencyDays}
+                        onChangeText={setFrequencyDays}
+                        keyboardType="numeric"
+                    />
+                    <TouchableOpacity style={choresStyles.addButton} onPress={addDefaultChore}>
+                        <Text style={choresStyles.addButtonText}>Add scheduled chore</Text>
+                    </TouchableOpacity>
                 </View>
-                
+
+                {/* Displaying Default Chores */}
+                <Text style={[choresStyles.addChoreTitle, {marginTop:20}]}>Scheduled Chores</Text>
+                {defaultChores.length === 0 ? (
+                    <Text>No scheduled chores found.</Text>
+                ) : (
+                    defaultChores.map(chore => (
+                        <View key={chore.id} style={choresStyles.choreItem}>
+                            <Text style={choresStyles.choreText}>
+                                {chore.name} ({chore.frequencyDays || 7} days)
+                            </Text>
+                            <TouchableOpacity style={{marginLeft:'auto'}} onPress={() => deleteDefaultChore(chore.id)}>
+                                <Ionicons name="trash" size={24} color="red" />
+                            </TouchableOpacity>
+                        </View>
+                    ))
+                )}
+
             </ScrollView>
         </View>
     );

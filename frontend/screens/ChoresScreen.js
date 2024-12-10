@@ -1,3 +1,4 @@
+// frontend/screens/ChoresScreen.js
 import React, { useState, useEffect } from 'react';
 import {
     View,
@@ -21,7 +22,7 @@ function getCurrentWeekIdentifier() {
     const year = now.getUTCFullYear();
     const oneJan = new Date(year,0,1);
     const numberOfDays = Math.floor((now - oneJan) / (24 * 60 * 60 * 1000));
-    const week = Math.ceil((numberOfDays + oneJan.getUTCDay() + 1)/7);
+    const week = Math.ceil((numberOfDays + oneJan.getUTCDay()+1)/7);
     return `${year}-W${week}`;
 }
 
@@ -80,9 +81,28 @@ export default function ChoresScreen({ navigation }) {
             });
             const allChores = response.data;
 
-            const userChoresList = allChores.filter(ch => ch.assignedTo === currentUser.id && !ch.completed);
-            const otherChoresList = allChores.filter(ch => ch.assignedTo !== currentUser.id && !ch.completed);
-            const completedList = allChores.filter(ch => ch.completed);
+            let userChoresList = allChores.filter(ch => ch.assignedTo === currentUser.id && !ch.completed);
+            let otherChoresList = allChores.filter(ch => ch.assignedTo !== currentUser.id && !ch.completed);
+            let completedList = allChores.filter(ch => ch.completed);
+
+            // Sort chores
+            userChoresList = userChoresList.sort((a, b) => {
+                const aTime = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : 0;
+                const bTime = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : 0;
+                return aTime - bTime;
+            });
+
+            otherChoresList = otherChoresList.sort((a, b) => {
+                const aTime = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : 0;
+                const bTime = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : 0;
+                return aTime - bTime;
+            });
+
+            completedList = completedList.sort((a, b) => {
+                const aTime = a.completedTime?.toDate ? a.completedTime.toDate().getTime() : 0;
+                const bTime = b.completedTime?.toDate ? b.completedTime.toDate().getTime() : 0;
+                return bTime - aTime;
+            });
 
             setUserChores(userChoresList);
             setOtherUsersChores(otherChoresList);
@@ -225,7 +245,6 @@ export default function ChoresScreen({ navigation }) {
                     <TouchableOpacity style={shoppingListStyles.listSettings} onPress={() => setShowOnlyMyTasks(!showOnlyMyTasks)}>
                         <Ionicons name={showOnlyMyTasks ? "contract" : "expand"} size={24} color="black" />
                     </TouchableOpacity>
-                    {/* New Stats Button */}
                     <TouchableOpacity style={choresStyles.iconButton} onPress={() => navigation.navigate('ChoresStats')}>
                         <Ionicons name="stats-chart" size={24} color="black" />
                     </TouchableOpacity>

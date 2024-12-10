@@ -6,7 +6,6 @@ const db = admin.firestore();
 
 /**
  * Utility function to get current week identifier
- * Example: "2024-W50"
  */
 function getCurrentWeekIdentifier() {
     const now = new Date();
@@ -17,28 +16,8 @@ function getCurrentWeekIdentifier() {
     return `${year}-W${week}`;
 }
 
-// Utility to get the previous week identifier if needed
-function getPreviousWeekIdentifier() {
-    const now = new Date();
-    // Get current week first
-    const currentWeek = getCurrentWeekIdentifier();
-    // Parse current year-week
-    const [yearStr, weekStr] = currentWeek.split('-W');
-    let year = parseInt(yearStr, 10);
-    let week = parseInt(weekStr, 10) - 1;
+// No need for previous week identifier since we no longer delete chores.
 
-    // If week goes below 1, move to previous year (week 52 or 53)
-    if (week < 1) {
-        year -= 1;
-        // A simplistic approach: we assume 52 weeks in the last year
-        // (You could calculate it precisely if needed)
-        week = 52;
-    }
-
-    return `${year}-W${week}`;
-}
-
-// GET /chores?householdId=&assignedTo=&weekIdentifier=
 router.get('/', async (req, res) => {
     console.log('Received GET request for /chores');
     try {
@@ -68,9 +47,6 @@ router.get('/', async (req, res) => {
     }
 });
 
-// POST /chores - Add a new chore
-// Expects { name, assignedTo, householdId, weekIdentifier }
-// NEW/CHANGED: Also store originalAssignedTo and assignedTime
 router.post('/', async (req, res) => {
     console.log('Received POST request for /chores with data:', req.body);
     try {
@@ -78,7 +54,7 @@ router.post('/', async (req, res) => {
         const choreData = {
             name: req.body.name,
             assignedTo: assignedTo,
-            originalAssignedTo: assignedTo, // NEW
+            originalAssignedTo: assignedTo,
             completed: false,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             householdId: req.body.householdId || null,
@@ -93,17 +69,15 @@ router.post('/', async (req, res) => {
     }
 });
 
-// PUT /chores/:id/complete
-// NEW/CHANGED: Also store completedTime
 router.put('/:id/complete', async (req, res) => {
     const choreId = req.params.id;
-    const { completedBy } = req.body; // expect { completedBy: userId }
+    const { completedBy } = req.body;
     try {
         const choreRef = db.collection('chores').doc(choreId);
         await choreRef.update({ 
             completed: true, 
             completedBy, 
-            completedTime: admin.firestore.FieldValue.serverTimestamp() // NEW
+            completedTime: admin.firestore.FieldValue.serverTimestamp()
         });
         res.status(200).json({ message: 'Chore marked as completed' });
     } catch (error) {
@@ -112,15 +86,11 @@ router.put('/:id/complete', async (req, res) => {
     }
 });
 
-// PUT /chores/:id/assign - Reassign a chore to another user
-// Expects { newUser }
-// Keep originalAssignedTo intact. This ensures we can track original vs final completer.
 router.put('/:id/assign', async (req, res) => {
     console.log(`Received PUT request for /chores/${req.params.id}/assign`);
     try {
         const { newUser } = req.body;
         const choreRef = db.collection('chores').doc(req.params.id);
-        // Just update assignedTo. Do not change originalAssignedTo.
         await choreRef.update({ assignedTo: newUser });
         console.log(`Chore with ID ${req.params.id} reassigned to ${newUser}`);
         res.status(200).json({ message: 'Chore reassigned' });
@@ -130,7 +100,6 @@ router.put('/:id/assign', async (req, res) => {
     }
 });
 
-// DELETE /chores/:id - Delete a chore
 router.delete('/:id', async (req, res) => {
     console.log(`Received DELETE request for /chores/${req.params.id}`);
     try {
@@ -144,7 +113,6 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// GET /chores/templates - Get all template chores
 router.get('/templates', async (req, res) => {
     try {
         const templateRef = db.collection('template_chores');
@@ -158,8 +126,6 @@ router.get('/templates', async (req, res) => {
     }
 });
 
-// POST /chores/templates - Add a new template chore
-// Expects { name, defaultAssignedTo, householdId }
 router.post('/templates', async (req, res) => {
     try {
         const data = {
@@ -175,31 +141,22 @@ router.post('/templates', async (req, res) => {
     }
 });
 
-// POST /chores/generate_weekly?householdId=...
-// NEW/CHANGED: also add originalAssignedTo when generating chores
-router.post('/generate_weekly', async (req, res) => {
+router.post('/generate_due', async (req, res) => {
     const { householdId } = req.query;
     if (!householdId) {
         return res.status(400).json({ error: 'householdId query param required' });
     }
 
     try {
-        const currentWeek = getCurrentWeekIdentifier();
-
-        // Fetch default chores from the household
         const defaultChoresSnap = await db.collection('households')
             .doc(householdId)
             .collection('defaultChores')
             .get();
 
-        const defaultChores = [];
-        defaultChoresSnap.forEach(doc => defaultChores.push({ id: doc.id, ...doc.data() }));
-
-        if (defaultChores.length === 0) {
+        if (defaultChoresSnap.empty) {
             return res.status(200).json({ message: 'No default chores found for this household.' });
         }
 
-        // Fetch household users
         const usersSnap = await db.collection('users')
             .where('householdId', '==', householdId)
             .get();
@@ -213,72 +170,66 @@ router.post('/generate_weekly', async (req, res) => {
             return res.status(200).json({ message: 'No users found for this household.' });
         }
 
-        // Randomly assign chores to users
+        const now = new Date();
         const batch = db.batch();
-        defaultChores.forEach(chore => {
-            const randomUser = users[Math.floor(Math.random() * users.length)];
-            const newChoreRef = db.collection('chores').doc();
-            batch.set(newChoreRef, {
-                name: chore.name,
-                assignedTo: randomUser.id,
-                originalAssignedTo: randomUser.id, // NEW
-                completed: false,
-                timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                householdId: householdId,
-                weekIdentifier: currentWeek
-            });
+        let choresGenerated = 0;
+
+        defaultChoresSnap.forEach(choreDoc => {
+            const choreData = choreDoc.data();
+            const frequency = choreData.frequencyDays || 7;
+            const lastGenerated = choreData.lastGenerated?.toDate() || new Date(0);
+            const diffDays = Math.floor((now - lastGenerated) / (1000*60*60*24));
+
+            if (diffDays >= frequency) {
+                // Due to regenerate
+                const randomUser = users[Math.floor(Math.random() * users.length)];
+                const newChoreRef = db.collection('chores').doc();
+                batch.set(newChoreRef, {
+                    name: choreData.name,
+                    assignedTo: randomUser.id,
+                    originalAssignedTo: randomUser.id,
+                    completed: false,
+                    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                    householdId: householdId,
+                    weekIdentifier: getCurrentWeekIdentifier()
+                });
+
+                // Update lastGenerated
+                const choreRef = db.collection('households')
+                    .doc(householdId)
+                    .collection('defaultChores')
+                    .doc(choreDoc.id);
+                batch.update(choreRef, { lastGenerated: admin.firestore.FieldValue.serverTimestamp() });
+
+                choresGenerated++;
+            }
         });
 
         await batch.commit();
-        res.status(200).json({ message: 'Weekly chores generated and assigned randomly.' });
+        res.status(200).json({ message: `${choresGenerated} chores generated based on frequency.` });
     } catch (error) {
-        console.error('Error generating weekly chores:', error);
+        console.error('Error generating due chores:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-// NEW: DELETE /chores/cleanup_weekly - an endpoint to delete completed chores from previous week
-// Call this at the end of each week or schedule it via cron.
-router.delete('/cleanup_weekly', async (req, res) => {
-    try {
-        const previousWeek = getPreviousWeekIdentifier();
-        const choresRef = db.collection('chores');
-        const completedChoresSnap = await choresRef
-            .where('weekIdentifier', '==', previousWeek)
-            .where('completed', '==', true)
-            .get();
+// Remove or comment out the cleanup_weekly route since we no longer delete chores
+// router.delete('/cleanup_weekly', ... ) // Not needed anymore
 
-        const batch = db.batch();
-        completedChoresSnap.forEach(doc => {
-            batch.delete(doc.ref);
-        });
-
-        await batch.commit();
-        res.status(200).json({ message: `Cleaned up completed chores for ${previousWeek}` });
-    } catch (error) {
-        console.error('Error cleaning up chores:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// NEW: GET /chores/stats?householdId=...&weekIdentifier=...
-// Returns stats: how many chores completed by each user, how many taken over, average completion time
 router.get('/stats', async (req, res) => {
-    const { householdId, weekIdentifier = getCurrentWeekIdentifier() } = req.query;
+    const { householdId } = req.query;
     if (!householdId) {
         return res.status(400).json({ error: 'householdId is required' });
     }
     try {
         let choresRef = db.collection('chores')
-            .where('householdId', '==', householdId)
-            .where('weekIdentifier', '==', weekIdentifier);
-        
+            .where('householdId', '==', householdId);
+
         const snapshot = await choresRef.get();
         const chores = [];
         snapshot.forEach(doc => chores.push({ id: doc.id, ...doc.data() }));
 
-        const userStats = {}; // { userId: { completedCount: number, takenOverCount: number, totalCompletionTime: number, countWithTime: number } }
-        
+        const userStats = {}; 
         chores.forEach(ch => {
             if (ch.completed) {
                 const completer = ch.completedBy;
@@ -306,7 +257,6 @@ router.get('/stats', async (req, res) => {
             }
         });
 
-        // Calculate averages
         const results = [];
         for (const userId in userStats) {
             const data = userStats[userId];
