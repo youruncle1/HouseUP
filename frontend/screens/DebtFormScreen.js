@@ -15,6 +15,7 @@ import api from '../services/api';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
+import { useAppContext } from '../AppContext';
 
 export default function DebtFormScreen({ navigation, route }) {
     const { mode, debt } = route.params;
@@ -26,6 +27,7 @@ export default function DebtFormScreen({ navigation, route }) {
     const [startDate, setStartDate] = useState(debt && debt.startDate ? new Date(debt.startDate) : new Date());
     const [showStartDatePicker, setShowStartDatePicker] = useState(false);
     const [recurrenceInterval, setRecurrenceInterval] = useState(debt ? debt.recurrenceInterval : 'once');
+    const { currentHousehold } = useAppContext();
 
     useEffect(() => {
         navigation.setOptions({
@@ -59,6 +61,7 @@ export default function DebtFormScreen({ navigation, route }) {
                 recurrenceInterval: isRecurring ? recurrenceInterval : null,
                 startDate: isRecurring ? startDate.toISOString() : null,
                 nextPaymentDate: isRecurring ? startDate.toISOString() : null,
+                householdId: currentHousehold.id,
             };
 
             if (mode === 'add') {

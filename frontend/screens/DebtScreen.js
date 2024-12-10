@@ -14,19 +14,22 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useAppContext } from '../AppContext'; // <<-- Import useAppContext
 import api from '../services/api';
+import styles from '../styles/DebtStyles';
+import colors from '../styles/MainStyles';
 
 export default function DebtScreen() {
     const navigation = useNavigation();
+    const { currentHousehold } = useAppContext(); // <<-- Access currentHousehold
     const [debts, setDebts] = useState([]);
     const [transactions, setTransactions] = useState([]);
-    const [showAllTransactions, setShowAllTransactions] = useState(false);
     const [recurringDebts, setRecurringDebts] = useState([]);
 
     useFocusEffect(
         React.useCallback(() => {
             fetchDebts();
-        }, [])
+        }, [currentHousehold]) // refetch when household changes
     );
 
     const getTimestampValue = (timestamp) => {
@@ -42,16 +45,17 @@ export default function DebtScreen() {
     };
 
     const fetchDebts = async () => {
-        try {
-            const response = await api.get('/debts');
-            const allDebts = response.data;
+        if (!currentHousehold?.id) return; // Ensure household is selected
 
-            // Exclude recurring debt templates
+        try {
+            // Include householdId in query
+            const response = await api.get(`/debts?householdId=${currentHousehold.id}`);
+            const allDebts = response.data.filter((d) => d.householdId === currentHousehold.id);
+
+            // Exclude recurring templates (just as before)
             const filteredDebts = allDebts.filter((debt) => !debt.isRecurring);
 
-            // Proceed with existing processing using filteredDebts
-
-            // Group debts by debtor and creditor
+            // Summarize debts
             const debtSummary = {};
             filteredDebts.forEach((debt) => {
                 if (!debt.isSettled) {
@@ -64,7 +68,6 @@ export default function DebtScreen() {
                 }
             });
 
-            // Convert debtSummary to an array for rendering
             const debtList = Object.keys(debtSummary).map((key) => {
                 const [debtor, creditor] = key.split('->');
                 return {
@@ -74,7 +77,7 @@ export default function DebtScreen() {
                 };
             });
 
-            // Sort all transactions (settled and unsettled) by timestamp (newest first)
+            // Sort transactions
             const sortedTransactions = filteredDebts
                 .filter((debt) => getTimestampValue(debt.timestamp))
                 .sort((a, b) => {
@@ -83,18 +86,16 @@ export default function DebtScreen() {
                     return timeB - timeA;
                 });
 
-            // Fetch recurring debts
-            const recurringResponse = await api.get('/debts/recurring');
-            const recurringDebtsData = recurringResponse.data;
+            // Fetch recurring debts (filtered by household)
+            const recurringResponse = await api.get(`/debts/recurring?householdId=${currentHousehold.id}`);
+            const recurringDebtsData = recurringResponse.data.filter((d) => d.householdId === currentHousehold.id);
 
-            // Sort recurring debts by nextPaymentDate
             recurringDebtsData.sort((a, b) => {
                 const dateA = new Date(a.nextPaymentDate);
                 const dateB = new Date(b.nextPaymentDate);
                 return dateA - dateB;
             });
 
-            // Set the processed data to state variables
             setDebts(debtList);
             setTransactions(sortedTransactions);
             setRecurringDebts(recurringDebtsData);
@@ -102,7 +103,6 @@ export default function DebtScreen() {
             console.error('Error fetching debts:', error);
         }
     };
-
 
     const settleDebt = (item) => {
         Alert.alert(
@@ -166,7 +166,6 @@ export default function DebtScreen() {
 
     const renderTransactionItem = ({ item }) => {
         let dateString = 'Unknown Date';
-
         const timestampValue = getTimestampValue(item.timestamp);
 
         if (timestampValue) {
@@ -197,9 +196,17 @@ export default function DebtScreen() {
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
+            {/* Header copied from ShoppingListScreen style */}
             <View style={styles.header}>
-                <Text style={styles.title}>Debt Settlement</Text>
+                <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
+                    <Ionicons name="menu" size={24} color="white" />
+                </TouchableOpacity>
+                <View style={styles.headerContent}>
+                    <Text style={styles.householdName}>{currentHousehold?.name || 'No Household Selected'}</Text>
+                    <Text style={styles.itemCounter}>Debts Overview</Text>
+                </View>
             </View>
+
             <ScrollView style={styles.scrollContainer}>
                 {/* Debts Section */}
                 <View style={styles.section}>
@@ -242,6 +249,7 @@ export default function DebtScreen() {
                         </>
                     )}
                 </View>
+
                 {/* Upcoming Recurring Payments Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Upcoming Recurring Payments</Text>
@@ -250,7 +258,7 @@ export default function DebtScreen() {
                     ) : (
                         <>
                             <FlatList
-                                data={recurringDebts.slice(0, 1)} // Show the closest upcoming payment
+                                data={recurringDebts.slice(0, 1)}
                                 keyExtractor={(item) => item.id}
                                 renderItem={renderRecurringDebtItem}
                                 scrollEnabled={false}
@@ -279,134 +287,3 @@ export default function DebtScreen() {
         </KeyboardAvoidingView>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f7f7f7',
-    },
-    header: {
-        paddingTop: 20,
-        paddingBottom: 10,
-        backgroundColor: '#741ded',
-        alignItems: 'center',
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#fff',
-    },
-    debtList: {
-        flex: 1,
-    },
-    debtItem: {
-        backgroundColor: '#e0e0e0',
-        padding: 15,
-        marginHorizontal: 15,
-        marginTop: 10,
-        borderRadius: 8,
-        elevation: 1,
-    },
-    debtInfo: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    debtText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#333',
-    },
-    amountText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#6200ee',
-    },
-    debtDescription: {
-        fontSize: 14,
-        color: '#666',
-        marginTop: 5,
-    },
-    settleButton: {
-        marginTop: 10,
-        backgroundColor: '#03dac5',
-        paddingVertical: 8,
-        borderRadius: 5,
-        alignItems: 'center',
-    },
-    settleButtonText: {
-        color: '#fff',
-        fontSize: 16,
-    },
-    settledText: {
-        marginTop: 10,
-        fontSize: 16,
-        color: '#4caf50',
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
-    form: {
-        padding: 15,
-        backgroundColor: '#fff',
-        borderTopColor: '#ddd',
-        borderTopWidth: 1,
-    },
-    formTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 10,
-        color: '#6200ee',
-        textAlign: 'center',
-    },
-    input: {
-        borderColor: '#ddd',
-        borderWidth: 1,
-        paddingHorizontal: 15,
-        paddingVertical: 10,
-        borderRadius: 5,
-        marginBottom: 10,
-        fontSize: 16,
-    },
-    addButton: {
-        backgroundColor: '#6200ee',
-        borderRadius: 30,
-        width: 60,
-        height: 60,
-        justifyContent: 'center',
-        alignItems: 'center',
-        position: 'absolute',
-        bottom: 30,
-        alignSelf: 'center',
-    },
-    addButtonText: {
-        color: '#fff',
-        fontSize: 18,
-    },
-    scrollContainer: {
-        flex: 1,
-    },
-    section: {
-        marginTop: 20,
-        paddingHorizontal: 15,
-    },
-    sectionTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#6200ee',
-        marginBottom: 10,
-    },
-    noDataText: {
-        fontSize: 16,
-        color: '#666',
-        textAlign: 'center',
-        marginTop: 10,
-    },
-    showMoreButton: {
-        alignItems: 'center',
-        paddingVertical: 10,
-    },
-    showMoreText: {
-        color: '#6200ee',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-});

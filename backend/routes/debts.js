@@ -7,23 +7,28 @@ const db = admin.firestore();
 const moment = require('moment');
 
 // Get all debts
+// GET /debts
 router.get('/', async (req, res) => {
     console.log('Received GET request for /debts');
+    const householdId = req.query.householdId;
+
     try {
-        const debtsRef = db.collection('debts');
+        let debtsRef = db.collection('debts');
+        if (householdId) {
+            debtsRef = debtsRef.where('householdId', '==', householdId);
+        }
+
         const snapshot = await debtsRef.get();
         const debts = [];
         snapshot.forEach((doc) => {
             const data = doc.data();
-            // Convert Firestore Timestamp to ISO string
             if (data.timestamp && data.timestamp.toDate) {
                 data.timestamp = data.timestamp.toDate().toISOString();
             }
             debts.push({ id: doc.id, ...data });
         });
 
-        // Process due recurring debts
-        await processDueRecurringDebts();
+        await processDueRecurringDebts(); // This might need to consider householdId as well
 
         console.log(`Sending ${debts.length} debts`);
         res.status(200).json(debts);
@@ -95,13 +100,18 @@ async function processDueRecurringDebts() {
 // Get recurring debts
 router.get('/recurring', async (req, res) => {
     console.log('Received GET request for /debts/recurring');
+    const householdId = req.query.householdId;
+
     try {
-        const debtsRef = db.collection('debts');
-        const snapshot = await debtsRef.where('isRecurring', '==', true).get();
+        let debtsRef = db.collection('debts').where('isRecurring', '==', true);
+        if (householdId) {
+            debtsRef = debtsRef.where('householdId', '==', householdId);
+        }
+
+        const snapshot = await debtsRef.get();
         const recurringDebts = [];
         snapshot.forEach((doc) => {
             const data = doc.data();
-            // Convert Firestore Timestamps to ISO strings
             if (data.startDate && data.startDate.toDate) {
                 data.startDate = data.startDate.toDate().toISOString();
             }
@@ -131,8 +141,10 @@ router.post('/', async (req, res) => {
             isRecurring: req.body.isRecurring || false,
             recurrenceInterval: req.body.isRecurring ? req.body.recurrenceInterval : null,
             startDate: req.body.isRecurring ? admin.firestore.Timestamp.fromDate(new Date(req.body.startDate)) : null,
-            nextPaymentDate: req.body.isRecurring ? admin.firestore.Timestamp.fromDate(new Date(req.body.startDate)) : null, // For simplicity, set nextPaymentDate as startDate
+            nextPaymentDate: req.body.isRecurring ? admin.firestore.Timestamp.fromDate(new Date(req.body.startDate)) : null,
+            householdId: req.body.householdId, // <<-- Make sure to store householdId
         };
+
         const docRef = await db.collection('debts').add(debtData);
         console.log(`Added new debt with ID: ${docRef.id}`);
         res.status(201).json({ id: docRef.id, ...debtData });
@@ -147,14 +159,24 @@ router.put('/:id', async (req, res) => {
     console.log(`Received PUT request for /debts/${req.params.id}`);
     try {
         const debtRef = db.collection('debts').doc(req.params.id);
-        const debtData = {
+
+        const updateData = {
             creditor: req.body.creditor,
             debtor: req.body.debtor,
             amount: req.body.amount,
             description: req.body.description || '',
+            isRecurring: !!req.body.isRecurring,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            recurrenceInterval: req.body.isRecurring ? req.body.recurrenceInterval : null,
+            startDate: req.body.isRecurring && req.body.startDate
+                ? admin.firestore.Timestamp.fromDate(new Date(req.body.startDate))
+                : null,
+            nextPaymentDate: req.body.isRecurring && req.body.nextPaymentDate
+                ? admin.firestore.Timestamp.fromDate(new Date(req.body.nextPaymentDate))
+                : null,
         };
-        await debtRef.update(debtData);
+
+        await debtRef.update(updateData);
         console.log(`Debt with ID ${req.params.id} updated`);
         res.status(200).json({ message: 'Debt updated successfully' });
     } catch (error) {
