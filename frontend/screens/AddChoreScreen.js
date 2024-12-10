@@ -122,7 +122,7 @@ export default function AddChoreScreen({ navigation }) {
             <ScrollView>
 
                 {/* Immediate Chore Section */}
-                <Text style={choresStyles.addChoreTitle}>Add a Chore</Text>
+                <Text style={choresStyles.addChoreTitle}>Add immediate Chore</Text>
                 <View style={choresStyles.form}>
                     <TextInput
                         style={choresStyles.input}
@@ -177,12 +177,12 @@ export default function AddChoreScreen({ navigation }) {
                     <Text>No scheduled chores found.</Text>
                 ) : (
                     defaultChores.map(chore => (
-                        <View key={chore.id} style={choresStyles.choreItem}>
-                            <Text style={choresStyles.choreText}>
+                        <View key={chore.id} style={choresStyles.ScheduledChore}>
+                            <Text style={choresStyles.scheduledchoreText}>
                                 {chore.name} ({chore.frequencyDays || 7} days)
                             </Text>
                             <TouchableOpacity style={{marginLeft:'auto'}} onPress={() => deleteDefaultChore(chore.id)}>
-                                <Ionicons name="trash" size={24} color="red" />
+                                <Ionicons name="trash-outline" size={24} color="red" />
                             </TouchableOpacity>
                         </View>
                     ))

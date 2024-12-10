@@ -3,11 +3,10 @@ import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
-    TextInput,
-    TouchableOpacity,
     Alert,
     ScrollView,
-    Image
+    Image,
+    TouchableOpacity
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
@@ -21,10 +20,13 @@ function getCurrentWeekIdentifier() {
     const now = new Date();
     const year = now.getUTCFullYear();
     const oneJan = new Date(year,0,1);
-    const numberOfDays = Math.floor((now - oneJan) / (24 * 60 * 60 * 1000));
+    const numberOfDays = Math.floor((now - oneJan)/(24*60*60*1000));
     const week = Math.ceil((numberOfDays + oneJan.getUTCDay()+1)/7);
     return `${year}-W${week}`;
 }
+
+// Approximate height of each chore item. Adjust if needed.
+const ITEM_HEIGHT = 60;
 
 export default function ChoresScreen({ navigation }) {
     const { currentHousehold, currentUser } = useAppContext();
@@ -34,12 +36,8 @@ export default function ChoresScreen({ navigation }) {
     const [otherUsersChores, setOtherUsersChores] = useState([]);
     const [completedChores, setCompletedChores] = useState([]);
     const [choresCount, setChoresCount] = useState({ done: 0, assigned: 0 });
-    const [showForm, setShowForm] = useState(false);
     const [newChore, setNewChore] = useState('');
-    const [showOnlyMyTasks, setShowOnlyMyTasks] = useState(false);
-
     const [emailToUserInfo, setEmailToUserInfo] = useState({});
-    const [showMoreUserTasks, setShowMoreUserTasks] = useState(false);
 
     useEffect(() => {
         if (isFocused && currentHousehold && currentUser) {
@@ -51,7 +49,7 @@ export default function ChoresScreen({ navigation }) {
         if (currentHousehold && currentUser) {
             fetchChoresData();
         }
-    }, [currentHousehold, currentUser, showOnlyMyTasks]);
+    }, [currentHousehold, currentUser]);
 
     async function fetchUsers() {
         try {
@@ -61,7 +59,10 @@ export default function ChoresScreen({ navigation }) {
             const usersData = res.data;
             const map = {};
             usersData.forEach(u => {
-                map[u.id] = { name: u.name, profileImage:'https://static.vecteezy.com/system/resources/previews/019/879/186/non_2x/user-icon-on-transparent-background-free-png.png' };
+                map[u.id] = {
+                    name: u.name,
+                    profileImage: 'https://static.vecteezy.com/system/resources/previews/019/879/186/non_2x/user-icon-on-transparent-background-free-png.png'
+                };
             });
             setEmailToUserInfo(map);
             fetchChoresData();
@@ -148,40 +149,25 @@ export default function ChoresScreen({ navigation }) {
         }
     }
 
-    async function addChore() {
-        if (newChore.trim() === '') return;
-        try {
-            await api.post('/chores', {
-                name: newChore,
-                assignedTo: currentUser.id,
-                householdId: currentHousehold.id,
-                weekIdentifier: getCurrentWeekIdentifier()
-            });
-            setNewChore('');
-            setShowForm(false);
-            fetchChoresData();
-        } catch (error) {
-            console.error('Error adding chore:', error);
-        }
+    function renderUserChoreItem(item) {
+        return (
+            <View key={item.id} style={choresStyles.choreItem}>
+                <View style={choresStyles.choreTextContainer}>
+                    <Text style={choresStyles.choreText}>{item.name}</Text>
+                </View>
+                {!item.completed && (
+                    <TouchableOpacity
+                        style={choresStyles.completeButton}
+                        onPress={() => completeChore(item.id)}
+                    >
+                        <Text style={choresStyles.buttonText}>Done</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
+        );
     }
 
-    const renderUserChoreItem = (item) => (
-        <View key={item.id} style={choresStyles.choreItem}>
-            <View style={choresStyles.choreTextContainer}>
-                <Text style={choresStyles.choreText}>{item.name}</Text>
-            </View>
-            {!item.completed && (
-                <TouchableOpacity
-                    style={choresStyles.completeButton}
-                    onPress={() => completeChore(item.id)}
-                >
-                    <Text style={choresStyles.buttonText}>Done</Text>
-                </TouchableOpacity>
-            )}
-        </View>
-    );
-
-    const renderOtherChoreItem = (item) => {
+    function renderOtherChoreItem(item) {
         const userInfo = emailToUserInfo[item.assignedTo] || {};
         return (
             <View key={item.id} style={choresStyles.choreItem}>
@@ -201,9 +187,9 @@ export default function ChoresScreen({ navigation }) {
                 </TouchableOpacity>
             </View>
         );
-    };
+    }
 
-    const renderCompletedChoreItem = (item) => {
+    function renderCompletedChoreItem(item) {
         const assignedUserInfo = emailToUserInfo[item.originalAssignedTo] || {};
         const completerInfo = emailToUserInfo[item.completedBy] || {};
         return (
@@ -221,11 +207,14 @@ export default function ChoresScreen({ navigation }) {
                 </View>
             </View>
         );
-    };
+    }
 
-    const displayedUserChores = showOnlyMyTasks
-        ? userChores 
-        : (showMoreUserTasks ? userChores : userChores.slice(0,2));
+    // Determine container height dynamically
+    // If userChores.length <= 3, just fit them exactly (length * ITEM_HEIGHT)
+    // If userChores.length > 3, show only 3 tasks height (3 * ITEM_HEIGHT) and scroll
+    const visibleItems = Math.min(userChores.length, 3);
+    const containerHeight = visibleItems * ITEM_HEIGHT;
+    const userChoresScrollable = userChores.length > 3;
 
     return (
         <View style={choresStyles.container}>
@@ -242,29 +231,32 @@ export default function ChoresScreen({ navigation }) {
             <ScrollView style={{flex:1}}>
                 <View style={choresStyles.choreHeader}>
                     <Text style={shoppingListStyles.listTitle}>Your week's tasks:</Text>
-                    <TouchableOpacity style={shoppingListStyles.listSettings} onPress={() => setShowOnlyMyTasks(!showOnlyMyTasks)}>
-                        <Ionicons name={showOnlyMyTasks ? "contract" : "expand"} size={24} color="black" />
-                    </TouchableOpacity>
                     <TouchableOpacity style={choresStyles.iconButton} onPress={() => navigation.navigate('ChoresStats')}>
                         <Ionicons name="stats-chart" size={24} color="black" />
                     </TouchableOpacity>
-                    <TouchableOpacity style={{marginRight:10}} onPress={() => navigation.navigate('AddChore')}>
-                        <Ionicons name="add-circle-outline" size={24} color="black" />
-                    </TouchableOpacity>
                 </View>
 
-                {displayedUserChores.map(renderUserChoreItem)}
+                <View style={{ height: containerHeight, overflow: 'hidden' }}>
+                    <ScrollView
+                        nestedScrollEnabled={true}
+                        scrollEnabled={userChoresScrollable}
+                        showsVerticalScrollIndicator={userChoresScrollable}
+                    >
+                        {userChores.map(renderUserChoreItem)}
+                    </ScrollView>
+                </View>
 
-                {!showOnlyMyTasks && (
-                    <>
-                        <Text style={choresStyles.sectionHeader}>Other users' tasks:</Text>
-                        {otherUsersChores.map(renderOtherChoreItem)}
+                <Text style={choresStyles.sectionHeader}>Other users' tasks:</Text>
+                {otherUsersChores.map(renderOtherChoreItem)}
 
-                        <Text style={choresStyles.sectionHeader}>Completed this week:</Text>
-                        {completedChores.map(renderCompletedChoreItem)}
-                    </>
-                )}
+                <Text style={choresStyles.sectionHeader}>Completed this week:</Text>
+                {completedChores.map(renderCompletedChoreItem)}
             </ScrollView>
+
+            {/* Add Button */}
+            <TouchableOpacity style={choresStyles.GoToAddButton} onPress={() => navigation.navigate('AddChore')}>
+                <Ionicons name="add" size={36} color="white" />
+            </TouchableOpacity>
         </View>
     );
 }

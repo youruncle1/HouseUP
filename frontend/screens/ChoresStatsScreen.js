@@ -76,13 +76,21 @@ export default function ChoreStatsScreen({ navigation }) {
                     ) : (
                         stats.map((userStat) => {
                             const userInfo = usersMap[userStat.userId] || { name: userStat.userId };
+
+                            const { completedCount, takenOverCount, averageCompletionTimeMS } = userStat;
+                            const nonTakenOverCount = completedCount - takenOverCount;
+                            const takenOverPercentage = completedCount > 0 
+                                ? ((takenOverCount / completedCount) * 100).toFixed(2) 
+                                : 0;
+
                             return (
                                 <View key={userStat.userId} style={choresStyles.statsItem}>
                                     <Text style={choresStyles.statsUserName}>{userInfo.name || userStat.userId}</Text>
-                                    <Text style={choresStyles.statsText}>Completed: {userStat.completedCount}</Text>
-                                    <Text style={choresStyles.statsText}>Taken Over: {userStat.takenOverCount}</Text>
+                                    <Text style={choresStyles.statsText}>Total Completed: {completedCount}</Text>
+                                    <Text style={choresStyles.statsText}>Taken Over: {takenOverCount}</Text>
+                                    <Text style={choresStyles.statsText}>Taken Over %: {takenOverPercentage}%</Text>
                                     <Text style={choresStyles.statsText}>
-                                        Avg. Completion Time: {msToReadableTime(userStat.averageCompletionTimeMS)}
+                                        Avg. Completion Time: {msToReadableTime(averageCompletionTimeMS)}
                                     </Text>
                                 </View>
                             );

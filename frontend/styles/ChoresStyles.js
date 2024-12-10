@@ -1,5 +1,6 @@
 // frontend/styles/ChoresStyles.js
 import {StyleSheet} from 'react-native';
+import colors from '../styles/MainStyles'
 
 export default StyleSheet.create({
     container: {
@@ -20,6 +21,17 @@ export default StyleSheet.create({
         alignItems: 'center',
         borderRadius: 5,
     },
+    ScheduledChore: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#e0e0e0',
+        padding: 10,
+        paddingVertical: 13,
+        borderRadius: 15,
+        marginVertical: 5,
+        marginHorizontal:18,
+        justifyContent: 'space-between',
+    },
     choreHeader: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -30,16 +42,17 @@ export default StyleSheet.create({
     profileImage:{width:40, height:40,marginLeft:10},
     choreTextContainer: { flex: 1, marginHorizontal: 10 },
     choreText: { fontSize: 16, color: '#333' },
+    scheduledchoreText: {padding:3, fontSize: 16, color: '#333' },
     completedChoreText: { textDecorationLine: 'line-through', color: 'gray' },
     choreAssignedTo: { fontSize: 12, color: '#555' },
     completeButton: {
-        backgroundColor: 'green',
+        backgroundColor: colors.primary,
         paddingHorizontal: 10,
         paddingVertical: 5,
         borderRadius: 5,
     },
     takeOverButton: {
-        backgroundColor: 'orange',
+        backgroundColor: colors.primary,
         paddingHorizontal: 10,
         paddingVertical: 5,
         borderRadius: 5,
@@ -53,8 +66,8 @@ export default StyleSheet.create({
     form: {
         backgroundColor: '#eee',
         padding: 10,
-        borderRadius: 5,
-        marginBottom: 20,
+        borderRadius: 10,
+        margin:10
     },
     input: {
         backgroundColor: '#fff',
@@ -70,7 +83,7 @@ export default StyleSheet.create({
         borderRadius:10,
     },
     addButton: {
-        backgroundColor: '#6200EE',
+        backgroundColor: colors.primary,
         padding: 10,
         borderRadius: 5,
         alignItems: 'center',
@@ -82,13 +95,13 @@ export default StyleSheet.create({
     addChoreContainer: {
         flex:1,
         backgroundColor:'#fff',
-        padding:20
     },
     addChoreTitle: {
         fontSize:20,
         fontWeight:'bold',
         marginBottom:20,
         marginTop:20,
+        marginLeft:20,
     },
 
     // Stats screen styles
@@ -135,5 +148,16 @@ export default StyleSheet.create({
     },
     iconButton: {
         marginHorizontal: 10
+    },
+    GoToAddButton: {
+        backgroundColor: colors.primary,
+        borderRadius: 30,
+        width: 60,
+        height: 60,
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'absolute',
+        bottom: 30,
+        alignSelf: 'center',
     },
 });
