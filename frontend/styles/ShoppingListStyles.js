@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
         color: colors.text,
     },
 
-    //Add to debts Switch
+    //Switch styling
     switchContainer: {
         flexDirection: "row",
         justifyContent: "space-between",
@@ -210,19 +210,64 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 
-    favoriteSettingsButton: {
-        flexDirection: "row", // Align icon and text horizontally
-        paddingVertical: 10,
-        borderRadius: 8,
-        alignItems: "center",
-        justifyContent: "center", // Center icon and text
-        marginTop: 10,
+    // Settings
+    settingListHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 10,
     },
-
+    settingListTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        flex: 1,
+        marginTop:30,
+    },
+    favoriteSettingsButton: {
+        padding: 10,
+        marginRight:5,
+        marginTop: 25,
+    },
     favoriteSettingIcon: {
-        marginRight: 8, // Adjust if needed for spacing
         color: 'black',
     },
+    settingItemName: {
+        fontSize: 16,
+        flex: 1,
+        marginLeft: 10,
+    },
+    trashIcon: {
+        marginRight: 10,
+    },
+    addFavoriteContainer: {
+        position: "relative", // Enables absolute positioning for the button
+        marginVertical: 10,
+        marginHorizontal: 18,
+        borderRadius: 15,
+        backgroundColor: '#e0e0e0', // Matches the input background
+        paddingHorizontal: 10,
+        height: 45, // Adjust to fit the input and button
+        justifyContent: "center",
+    },
+    favoriteInput: {
+        fontSize: 16,
+        marginLeft: 10,
+        paddingVertical: 10,
+        paddingRight: 50, // Leave space for the button inside the input field
+        flex: 1,
+    },
+    addFavoriteButton: {
+        position: "absolute", // Places the button inside the input field
+        right: 10, // Adjust to align to the right edge of the container
+        top: "33%", // Vertically centers the button
+        transform: [{ translateY: -12 }], // Adjust to center properly
+        borderRadius: 20,
+        height: 40,
+        width: 40,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+
 });
 
 export default styles;

@@ -17,8 +17,9 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 
 export default function ShoppingListScreen({ navigation }) {
     const [items, setItems] = useState([]);
+    const [users, setUsers] = useState({});
     const isFocused = useIsFocused();
-    const { currentHousehold } = useAppContext();
+    const { currentHousehold, showUserImages, hideCheckedItems } = useAppContext();
 
     useEffect(() => {
         if (isFocused || currentHousehold) {
@@ -27,15 +28,35 @@ export default function ShoppingListScreen({ navigation }) {
     }, [isFocused, currentHousehold]);
 
     const fetchItems = async () => {
-        if (!currentHousehold?.id) return; // Ensure a household is selected
+        if (!currentHousehold?.id) return;
 
         try {
             const response = await api.get(`/shopping-list?householdId=${currentHousehold.id}`);
-            setItems(response.data);
+            const fetchedItems = response.data;
+
+            // Fetch user data for all unique user IDs
+            const userIds = [...new Set(fetchedItems.map(item => item.createdBy))];
+            const userResponses = await Promise.all(
+                userIds.map(userId => api.get(`/shopping-list/users/${userId}`))
+            );
+
+            // Map user data to a dictionary for quick access
+            const userMap = {};
+            userResponses.forEach((userResponse) => {
+                userMap[userResponse.data.id] = userResponse.data.profileImage;
+            });
+
+            setUsers(userMap); // Store user data
+            setItems(fetchedItems); // Store items
         } catch (error) {
-            console.error('Error fetching shopping list items:', error);
+            console.error('Error fetching shopping list items or user data:', error);
         }
     };
+
+    // Exclude purchased items if set in settings
+    const filteredItems = hideCheckedItems
+        ? items.filter((item) => !item.purchased)
+        : items;
 
     const purchaseItem = (id) => {
         Alert.alert(
@@ -104,15 +125,21 @@ export default function ShoppingListScreen({ navigation }) {
             <Text style={styles.itemQuantity}>{item.quantity}</Text>
 
             {/* User profile pic */}
-            <Image
-                source={{ uri: item.userImage || 'https://static.vecteezy.com/system/resources/previews/019/879/186/non_2x/user-icon-on-transparent-background-free-png.png' }}
-                style={styles.profileImage}
-            />
+            {showUserImages && (
+                <Image
+                    source={{
+                        uri: users[item.createdBy] || 'https://www.pngfind.com/pngs/m/488-4887957_facebook-teerasej-profile-ball-circle-circular-profile-picture.png',
+                    }}
+                    style={styles.profileImage}
+                />
+            )}
 
             {/* Delete */}
-            <TouchableOpacity onPress={() => deleteItem(item.id)}>
-                <Ionicons name="close-circle" size={24} color="red" />
-            </TouchableOpacity>
+            <View style={styles.deleteButton}>
+                <TouchableOpacity onPress={() => deleteItem(item.id)}>
+                    <Ionicons name="close-circle" size={24} color="red" />
+                </TouchableOpacity>
+            </View>
         </View>
     );
 
@@ -140,9 +167,11 @@ export default function ShoppingListScreen({ navigation }) {
             {/* Shopping List */}
             <View style={styles.listContainer}>
                 <FlatList
-                    data={items}
+                    data={filteredItems}
                     keyExtractor={(item) => item.id}
                     renderItem={renderItem}
+                    showsVerticalScrollIndicator={false}
+                    ListFooterComponent={<View style={{ height: 280 }} />}
                 />
             </View>
 
@@ -150,6 +179,10 @@ export default function ShoppingListScreen({ navigation }) {
             <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('AddItem')}>
                 <Ionicons name="add" size={36} color="white" />
             </TouchableOpacity>
+
+            {/* Just empty space */}
+            <View style={{ height: 180 }} />
+
         </View>
     );
 }

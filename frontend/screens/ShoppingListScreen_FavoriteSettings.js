@@ -14,8 +14,6 @@ import { useAppContext } from "../AppContext";
 
 export default function ShoppingListScreen_FavoriteSettings({ navigation }) {
     const [favorites, setFavorites] = useState([]);
-    const [switchOne, setSwitchOne] = useState(false);
-    const [switchTwo, setSwitchTwo] = useState(false);
     const { currentHousehold } = useAppContext();
 
     // Fetch favorites when component loads
@@ -67,25 +65,6 @@ export default function ShoppingListScreen_FavoriteSettings({ navigation }) {
                                 <Ionicons name="create-outline" size={20} color="#fff" style={styles.iconStyle} />
                                 <Text style={styles.navigateButtonText}>Manage Favorites</Text>
                             </TouchableOpacity>
-                        </View>
-                        {/* Other Settings */}
-                        <View style={styles.switchContainer}>
-                            <Text style={styles.switchLabel}>Enable Notifications</Text>
-                            <Switch
-                                value={enableNotifications}
-                                onValueChange={setEnableNotifications}
-                                trackColor={{ false: "#ddd", true: "#741ded" }}
-                                thumbColor={enableNotifications ? "#fff" : "#fff"}
-                            />
-                        </View>
-                        <View style={styles.switchContainer}>
-                            <Text style={styles.switchLabel}>Enable Sync</Text>
-                            <Switch
-                                value={enableSync}
-                                onValueChange={setEnableSync}
-                                trackColor={{ false: "#ddd", true: "#741ded" }}
-                                thumbColor={enableSync ? "#fff" : "#fff"}
-                            />
                         </View>
                     </>
                 }

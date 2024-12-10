@@ -7,9 +7,22 @@ const AppContext = createContext();
 export function AppProvider({ children }) {
     const [currentUser, setCurrentUser] = useState({ id: 'user2@gmail.com', name: 'Roman' });
     const [currentHousehold, setCurrentHousehold] = useState({ id: 'household1', name: 'Household1' });
+    const [showUserImages, setShowUserImages] = useState(true);
+    const [hideCheckedItems, setHideCheckedItems] = useState(false);
 
     return (
-        <AppContext.Provider value={{ currentUser, setCurrentUser, currentHousehold, setCurrentHousehold }}>
+        <AppContext.Provider
+            value={{
+                currentUser,
+                setCurrentUser,
+                currentHousehold,
+                setCurrentHousehold,
+                showUserImages,
+                setShowUserImages,
+                hideCheckedItems,
+                setHideCheckedItems
+            }}
+        >
             {children}
         </AppContext.Provider>
     );

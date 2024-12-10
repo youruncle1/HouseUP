@@ -6,7 +6,6 @@ const db = admin.firestore();
 // Get all shopping list items for a specific household
 router.get('/', async (req, res) => {
     const householdId = req.query.householdId; // Get householdId from query parameters
-    console.log(`Received GET request for /shopping-list with householdId: ${householdId}`);
 
     if (!householdId) {
         return res.status(400).json({ error: 'householdId is required' });
@@ -47,7 +46,6 @@ router.get('/:householdID/favouriteShopItems', async (req, res) => {
 // Add new shop items to shopping list for a specific household
 router.post('/', async (req, res) => {
     const { items, householdId } = req.body;
-    console.log('Received POST request for /shopping-list with data:', req.body);
 
     if (!householdId || !items || !Array.isArray(items)) {
         return res.status(400).json({ error: 'householdId and an array of items are required' });
@@ -75,9 +73,34 @@ router.post('/', async (req, res) => {
     }
 });
 
+// Add a new favorite shopping list item for a specific household
+router.post('/:householdID/favouriteShopItems', async (req, res) => {
+    const { householdID } = req.params;
+    const { name } = req.body;
+
+    if (!name || name.trim() === "") {
+        return res.status(400).json({ error: 'Item name is required' });
+    }
+
+    try {
+        const newItem = { name: name.trim() };
+        const docRef = await db
+            .collection('households')
+            .doc(householdID)
+            .collection('favouriteShopItems')
+            .add(newItem);
+
+        console.log(`Added new favorite item with ID: ${docRef.id} for householdID: ${householdID}`);
+        res.status(201).json({ id: docRef.id, ...newItem });
+    } catch (error) {
+        console.error('Error adding favorite item:', error.message);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 // Mark an item as purchased
 router.put('/:id/purchase', async (req, res) => {
-    console.log(`Received PUT request for /shopping-list/${req.params.id}/purchase`);
+
     try {
         const itemRef = db.collection('shoppingList').doc(req.params.id);
         await itemRef.update({ purchased: true });
@@ -119,5 +142,56 @@ router.delete('/:id', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+// Delete a favorite shopping list item for a specific household
+router.delete('/:householdID/favouriteShopItems/:favoriteID', async (req, res) => {
+    const { householdID, favoriteID } = req.params;
+
+    try {
+        const favoriteRef = db
+            .collection('households')
+            .doc(householdID)
+            .collection('favouriteShopItems')
+            .doc(favoriteID);
+
+        // Check if the item exists
+        const doc = await favoriteRef.get();
+        if (!doc.exists) {
+            return res.status(404).json({ error: 'Favorite item not found' });
+        }
+
+        // Delete the item
+        await favoriteRef.delete();
+        console.log(`Deleted favorite item with ID: ${favoriteID} for householdID: ${householdID}`);
+        res.status(200).json({ message: 'Favorite item deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting favorite item:', error.message);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Get user data
+router.get('/users/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const userDoc = await db.collection('users').doc(userId).get();
+
+        if (!userDoc.exists) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const userData = userDoc.data();
+        res.status(200).json({
+            id: userId, // Include the document ID as the user ID
+            ...userData,
+        });
+    } catch (error) {
+        console.error('Error fetching user info:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
 
 module.exports = router;
