@@ -13,6 +13,8 @@ import ChoresScreen from './screens/ChoresScreen';
 import AddChoreScreen from './screens/AddChoreScreen';
 import ShoppingListScreen from './screens/ShoppingListScreen';
 import ShoppingListScreen_AddItem from './screens/ShoppingListScreen_AddItem';
+import ShoppingListScreen_Settings from './screens/ShoppingListScreen_Settings';
+import ShoppingListScreen_FavoriteSettings from './screens/ShoppingListScreen_FavoriteSettings';
 import DebtScreen from './screens/DebtScreen';
 import DebtFormScreen from './screens/DebtFormScreen';
 import RecurringDebtsScreen from './screens/RecurringDebtsScreen';
@@ -43,6 +45,8 @@ function ShoppingListStack() {
             <Stack.Screen name="ShoppingListHome" component={ShoppingListScreen} options={{ title: 'Shopping List' }} />
             {/* Additional screens for Shopping List can go here */}
             <Stack.Screen name="AddItem" component={ShoppingListScreen_AddItem} options={{ title: 'Add Item' }} />
+            <Stack.Screen name="ShoppingListSettings" component={ShoppingListScreen_Settings} options={{ title: 'Settings' }} />
+            <Stack.Screen name="ShoppingListFavoriteSettings" component={ShoppingListScreen_FavoriteSettings} options={{ title: 'FavoriteSettings' }} />
         </Stack.Navigator>
     );
 }
