@@ -85,12 +85,16 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
             setFavorites(updatedFavorites);
         } else {
             const updatedItems = [...items];
-            if (updatedItems[index].quantity > 0) {
+            if (updatedItems[index].quantity > 1) {
                 updatedItems[index].quantity -= 1;
+            } else {
+                // Remove item if quantity reaches 0
+                updatedItems.splice(index, 1);
             }
             setItems(updatedItems);
         }
     };
+
 
     // Render each finalized item
     const renderItem = ({ item, index }) => (

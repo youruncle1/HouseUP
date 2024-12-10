@@ -209,6 +209,20 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
     },
+
+    favoriteSettingsButton: {
+        flexDirection: "row", // Align icon and text horizontally
+        paddingVertical: 10,
+        borderRadius: 8,
+        alignItems: "center",
+        justifyContent: "center", // Center icon and text
+        marginTop: 10,
+    },
+
+    favoriteSettingIcon: {
+        marginRight: 8, // Adjust if needed for spacing
+        color: 'black',
+    },
 });
 
 export default styles;

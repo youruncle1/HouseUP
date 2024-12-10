@@ -132,7 +132,7 @@ export default function ShoppingListScreen({ navigation }) {
             {/* Shopping List Title + Settings Button */}
             <View style={styles.listHeader}>
                 <Text style={styles.listTitle}>Shopping list:</Text>
-                <TouchableOpacity style={styles.listSettings} onPress={() => console.log('Settings button pressed')}>
+                <TouchableOpacity style={styles.listSettings} onPress={() => navigation.navigate('ShoppingListSettings')}>
                     <Ionicons name="settings-outline" size={24} style={styles.settingsIcon} />
                 </TouchableOpacity>
             </View>
