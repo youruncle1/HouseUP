@@ -30,16 +30,18 @@ app.get('/', (req, res) => {
 const debtsRoutes = require('./routes/debts');
 const choresRoutes = require('./routes/chores');
 const shoppingListRoutes = require('./routes/shoppingList');
+const householdsRoutes = require('./routes/households');
 
-// ADD THIS: Importing the new users route file
+// Importing the new users route file
 const usersRoutes = require('./routes/users');
 
 // Use routes
 app.use('/debts', debtsRoutes);
 app.use('/chores', choresRoutes);
 app.use('/shopping-list', shoppingListRoutes);
+app.use('/households', householdsRoutes);
 
-// ADD THIS: Using the users route
+// Using the users route
 app.use('/users', usersRoutes);
 
 // Start the server

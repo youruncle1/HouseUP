@@ -15,13 +15,15 @@ export default StyleSheet.create({
         backgroundColor: '#DDD',
         padding: 10,
         marginBottom: 5,
+        marginLeft: 10,
+        marginRight:10,
         alignItems: 'center',
         borderRadius: 5,
     },
     choreHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-start',
         paddingHorizontal: 10,
         paddingVertical: 10,
     },
@@ -49,13 +51,10 @@ export default StyleSheet.create({
         right: 20,
     },
     form: {
-        position: 'absolute',
-        bottom: 10,
-        left: 10,
-        right: 10,
         backgroundColor: '#eee',
         padding: 10,
         borderRadius: 5,
+        marginBottom: 20,
     },
     input: {
         backgroundColor: '#fff',
@@ -65,12 +64,76 @@ export default StyleSheet.create({
         borderWidth: 1,
         borderColor: '#ddd',
     },
+    inputpicker:{
+        backgroundColor:'#fff',
+        marginBottom:10,
+        borderRadius:10,
+    },
     addButton: {
         backgroundColor: '#6200EE',
         padding: 10,
         borderRadius: 5,
-        alignItems: 'center'
+        alignItems: 'center',
     },
     addButtonText: { color: '#fff', fontWeight: 'bold' },
     sectionHeader: { fontSize: 18, fontWeight: 'bold', marginHorizontal:10, marginTop:20 },
+
+    // New styles for AddChoreScreen
+    addChoreContainer: {
+        flex:1,
+        backgroundColor:'#fff',
+        padding:20
+    },
+    addChoreTitle: {
+        fontSize:20,
+        fontWeight:'bold',
+        marginBottom:20,
+        marginTop:20,
+    },
+
+    // Stats screen styles
+    statsHeader: {
+        flexDirection: 'row',
+        backgroundColor: '#6200EE',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 15,
+        justifyContent: 'space-between'
+    },
+    statsHeaderTitle: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 18,
+    },
+    statsContent: {
+        padding: 10
+    },
+    statsSectionHeader: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 10
+    },
+    statsItem: {
+        backgroundColor: '#DDD',
+        padding: 10,
+        marginBottom: 10,
+        borderRadius: 5
+    },
+    statsUserName: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 5
+    },
+    statsText: {
+        fontSize: 14,
+        marginBottom: 2
+    },
+    statsLoadingContainer: {
+        flex:1,
+        justifyContent:'center',
+        alignItems:'center'
+    },
+    iconButton: {
+        marginHorizontal: 10
+    },
 });

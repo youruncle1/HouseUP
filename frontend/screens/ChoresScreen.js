@@ -145,11 +145,8 @@ export default function ChoresScreen({ navigation }) {
         }
     }
 
-    // Render functions
     const renderUserChoreItem = (item) => (
         <View key={item.id} style={choresStyles.choreItem}>
-            {/* User chores are current user's tasks, 
-                no profile image needed, but you can add one if you want. */}
             <View style={choresStyles.choreTextContainer}>
                 <Text style={choresStyles.choreText}>{item.name}</Text>
             </View>
@@ -187,9 +184,7 @@ export default function ChoresScreen({ navigation }) {
     };
 
     const renderCompletedChoreItem = (item) => {
-        // Assigned user info
-        const assignedUserInfo = emailToUserInfo[item.assignedTo] || {};
-        // Completed by info
+        const assignedUserInfo = emailToUserInfo[item.originalAssignedTo] || {};
         const completerInfo = emailToUserInfo[item.completedBy] || {};
         return (
             <View key={item.id} style={choresStyles.choreItem}>
@@ -198,8 +193,8 @@ export default function ChoresScreen({ navigation }) {
                     style={choresStyles.profileImage}
                 />
                 <View style={choresStyles.choreTextContainer}>
-                    <Text style={choresStyles.choreText}>{item.name}</Text>
-                    <Text style={choresStyles.choreAssignedTo}>Assigned to: {assignedUserInfo.name || item.assignedTo}</Text>
+                    <Text style={choresStyles.completedChoreText}>{item.name}</Text>
+                    <Text style={choresStyles.choreAssignedTo}>Assigned to: {assignedUserInfo.name || item.originalAssignedTo}</Text>
                     {item.completedBy && (
                         <Text style={choresStyles.choreAssignedTo}>Completed by: {completerInfo.name || item.completedBy}</Text>
                     )}
@@ -208,9 +203,6 @@ export default function ChoresScreen({ navigation }) {
         );
     };
 
-    // Determine displayed user chores
-    // If showOnlyMyTasks is true, show ALL userChores of current user
-    // If false, show only 2 by default, toggle with showMoreUserTasks
     const displayedUserChores = showOnlyMyTasks
         ? userChores 
         : (showMoreUserTasks ? userChores : userChores.slice(0,2));
@@ -227,20 +219,23 @@ export default function ChoresScreen({ navigation }) {
                 </View>
             </View>
 
-
-
             <ScrollView style={{flex:1}}>
-            <View style={choresStyles.choreHeader}>
-                <Text style={shoppingListStyles.listTitle}>Your week's tasks:</Text>
-                <TouchableOpacity style={shoppingListStyles.listSettings} onPress={() => setShowOnlyMyTasks(!showOnlyMyTasks)}>
-                    <Ionicons name={showOnlyMyTasks ? "eye" : "eye-off"} size={24} color="black" />
-                </TouchableOpacity>
-                {/* Navigate to AddChore screen */}
-                <TouchableOpacity style={{marginRight:10}} onPress={() => navigation.navigate('AddChore')}>
-                    <Ionicons name="add-circle-outline" size={24} color="black" />
-                </TouchableOpacity>
-            </View>
+                <View style={choresStyles.choreHeader}>
+                    <Text style={shoppingListStyles.listTitle}>Your week's tasks:</Text>
+                    <TouchableOpacity style={shoppingListStyles.listSettings} onPress={() => setShowOnlyMyTasks(!showOnlyMyTasks)}>
+                        <Ionicons name={showOnlyMyTasks ? "contract" : "expand"} size={24} color="black" />
+                    </TouchableOpacity>
+                    {/* New Stats Button */}
+                    <TouchableOpacity style={choresStyles.iconButton} onPress={() => navigation.navigate('ChoresStats')}>
+                        <Ionicons name="stats-chart" size={24} color="black" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={{marginRight:10}} onPress={() => navigation.navigate('AddChore')}>
+                        <Ionicons name="add-circle-outline" size={24} color="black" />
+                    </TouchableOpacity>
+                </View>
+
                 {displayedUserChores.map(renderUserChoreItem)}
+
                 {!showOnlyMyTasks && (
                     <>
                         <Text style={choresStyles.sectionHeader}>Other users' tasks:</Text>
@@ -250,25 +245,7 @@ export default function ChoresScreen({ navigation }) {
                         {completedChores.map(renderCompletedChoreItem)}
                     </>
                 )}
-
-                {showForm && (
-                    <View style={choresStyles.form}>
-                        <TextInput
-                            style={choresStyles.input}
-                            placeholder="Add a new chore"
-                            value={newChore}
-                            onChangeText={setNewChore}
-                        />
-                        <TouchableOpacity style={choresStyles.addButton} onPress={addChore}>
-                            <Text style={choresStyles.addButtonText}>Add Chore</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
             </ScrollView>
-
-            <TouchableOpacity style={choresStyles.addButtonToggle} onPress={() => setShowForm(!showForm)}>
-                <Ionicons name={showForm ? "close-circle" : "add-circle"} size={30} color="green" />
-            </TouchableOpacity>
         </View>
     );
 }
