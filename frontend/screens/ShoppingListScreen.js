@@ -6,6 +6,8 @@ import {
     TouchableOpacity,
     Alert,
     Image,
+    Modal,
+    TextInput,
 } from 'react-native';
 import api from '../services/api';
 import styles from '../styles/ShoppingListStyles';
@@ -19,14 +21,19 @@ export default function ShoppingListScreen({ navigation }) {
     const [items, setItems] = useState([]);
     const [users, setUsers] = useState({});
     const isFocused = useIsFocused();
-    const { currentHousehold, showUserImages, hideCheckedItems } = useAppContext();
+    const [isModalVisible, setIsModalVisible] = useState(false);
+    const [priceInput, setPriceInput] = useState('');
+    const [currentItem, setCurrentItem] = useState(null);
+    const { currentHousehold, currentUser, showUserImages, hideCheckedItems } = useAppContext();
 
+    // Fetch items when the screen is focused or the household changes
     useEffect(() => {
         if (isFocused || currentHousehold) {
-            fetchItems(); // Fetch items when the screen is focused or the household changes
+            fetchItems();
         }
     }, [isFocused, currentHousehold]);
 
+    // Fetch shopping list items
     const fetchItems = async () => {
         if (!currentHousehold?.id) return;
 
@@ -58,28 +65,77 @@ export default function ShoppingListScreen({ navigation }) {
         ? items.filter((item) => !item.purchased)
         : items;
 
-    const purchaseItem = (id) => {
-        Alert.alert(
-            'Purchase Item',
-            'Mark this item as purchased?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Yes',
-                    onPress: async () => {
-                        try {
-                            await api.put(`/shopping-list/${id}/purchase`);
-                            fetchItems();
-                        } catch (error) {
-                            console.error('Error purchasing item:', error);
-                        }
-                    },
-                },
-            ],
-            { cancelable: false }
-        );
+    // Sort items so that checked items appear last
+    const sortedItems = filteredItems.sort((a, b) => {
+        if (a.purchased === b.purchased) return 0; // No sorting if both are same
+        return a.purchased ? 1 : -1; // Move purchased items to the end
+    });
+
+    // Mark/Unmark item as purchased in shopping list (and create a debt)
+    const togglePurchaseItem = async (id, currentState, item) => {
+        if ((item?.createdBy !== currentUser.id) && !currentState && (item?.debtOption === 'single' || item?.debtOption === 'group')) {
+            // Save the current item and show the modal
+            setCurrentItem(item);
+            setIsModalVisible(true);
+        } else {
+            try {
+                // Directly toggle the purchased state if not debt-related
+                await api.put(`/shopping-list/${id}`, { purchased: !currentState });
+                fetchItems(); // Refresh the list
+            } catch (error) {
+                console.error('Error toggling purchased state:', error);
+            }
+        }
     };
 
+    const handleSingleDebtSubmit = async () => {
+        if (priceInput && !isNaN(priceInput)) {
+            const parsedPrice = parseFloat(priceInput);
+
+            try {
+                // Step 1: Create a transaction
+                const transactionResponse = await api.post('/shopping-list/transactions', {
+                    householdId: currentHousehold.id,
+                    creditor: currentUser.id, // Current user is the purchaser
+                    participants: [currentItem.createdBy], // The user who added the item
+                    amount: parsedPrice,
+                    description: `Debt for purchasing ${currentItem.name}`,
+                });
+
+                const transactionId = transactionResponse.data.id;
+
+                // Step 2: Create a debt linked to the transaction
+                await api.post('/shopping-list/debts', {
+                    amount: parsedPrice,
+                    creditor: currentUser.id,
+                    debtor: currentItem.createdBy,
+                    householdId: currentHousehold.id,
+                    relatedTransactionId: transactionId,
+                    isSettled: false,
+                });
+
+                console.log('Debt and transaction created successfully!');
+
+                // Step 3: Mark the item as purchased
+                await api.put(`/shopping-list/${currentItem.id}`, { purchased: true });
+
+                // Reset state and refresh items
+                setIsModalVisible(false);
+                setPriceInput('');
+                setCurrentItem(null);
+                fetchItems();
+            } catch (error) {
+                console.error('Error creating debt or transaction:', error);
+            }
+        }
+    };
+
+    const handleGroupDebtSubmit = async () => {
+        // Implement group debt submission logic here
+        console.log('Group debt logic is not yet implemented.');
+    };
+
+    // Delete item from shopping list
     const deleteItem = (id) => {
         Alert.alert(
             'Delete Item',
@@ -103,6 +159,7 @@ export default function ShoppingListScreen({ navigation }) {
         );
     };
 
+    // Render shopping list item
     const renderItem = ({ item }) => (
         <View style={styles.itemContainer}>
             {/* Checkbox */}
@@ -111,7 +168,7 @@ export default function ShoppingListScreen({ navigation }) {
                     styles.checkbox,
                     { backgroundColor: item.purchased ? colors.primary : 'transparent' }
                 ]}
-                onPress={() => purchaseItem(item.id)}
+                onPress={() => togglePurchaseItem(item.id, item.purchased, item)}
             >
                 {item.purchased && <Ionicons name="checkmark" size={18} color="white" />}
             </TouchableOpacity>
@@ -167,7 +224,7 @@ export default function ShoppingListScreen({ navigation }) {
             {/* Shopping List */}
             <View style={styles.listContainer}>
                 <FlatList
-                    data={filteredItems}
+                    data={sortedItems}
                     keyExtractor={(item) => item.id}
                     renderItem={renderItem}
                     showsVerticalScrollIndicator={false}
@@ -179,6 +236,54 @@ export default function ShoppingListScreen({ navigation }) {
             <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('AddItem')}>
                 <Ionicons name="add" size={36} color="white" />
             </TouchableOpacity>
+
+            {/* Modal for entering the price */}
+            <Modal
+                visible={isModalVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setIsModalVisible(false)} // Close modal on back button press
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContainer}>
+                        <Text style={styles.modalTitle}>This item was marked to be added in Debts!</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            keyboardType="numeric"
+                            placeholder="Enter the price..."
+                            placeholderTextColor="#999"
+                            value={priceInput}
+                            onChangeText={setPriceInput}
+                        />
+                        <View style={styles.modalButtons}>
+                            <View style={styles.modalCancelButton}>
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        setIsModalVisible(false);
+                                        setPriceInput('');
+                                        setCurrentItem(null);
+                                    }}
+                                >
+                                    <Text style={styles.modalCancelButtonText}>Cancel</Text>
+                                </TouchableOpacity>
+                            </View>
+                            <View style={styles.modalSubmitButton}>
+                                <TouchableOpacity
+                                    onPress={async () => {
+                                        if (currentItem?.debtOption === 'single') {
+                                            await handleSingleDebtSubmit();
+                                        } else if (currentItem?.debtOption === 'group') {
+                                            await handleGroupDebtSubmit();
+                                        }
+                                    }}
+                                >
+                                    <Text style={styles.modalSubmitButtonText} >Submit</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
 
             {/* Just empty space */}
             <View style={{ height: 180 }} />

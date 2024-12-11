@@ -8,6 +8,7 @@ import {
     Switch,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import { UserGroupIcon } from "react-native-heroicons/outline";
 import styles from "../styles/ShoppingListStyles";
 import api from "../services/api";
 import { useAppContext } from "../AppContext";
@@ -17,8 +18,9 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
     const [items, setItems] = useState([]);
     const [tempItem, setTempItem] = useState(null);
     const [favorites, setFavorites] = useState([]);
+    const [addToDebts, setAddToDebts] = useState(false); // Controls main switch
+    const [debtOption, setDebtOption] = useState(''); // 'single' or 'group'
     const { currentHousehold, currentUser } = useAppContext();
-    const [addToDebts, setAddToDebts] = useState(false);
 
     // Fetch favorites when component loads
     useEffect(() => {
@@ -149,9 +151,10 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
 
         try {
             await api.post('/shopping-list', {
-                items: combinedList, // Send the combined list as an array
+                items: combinedList,
                 householdId: currentHousehold.id,
-                userId: currentUser.id, // Include the current user's ID
+                userId: currentUser.id, // Current user's ID
+                debtOption, // Attach the selected debt option
             });
             console.log('Shopping list updated successfully!');
             navigation.goBack();
@@ -159,6 +162,7 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
             console.error('Error adding items to shopping list:', error.message);
         }
     };
+
 
 
     return (
@@ -216,15 +220,48 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
                         </View>
 
                         {/* Add to Debts Switch */}
-                        <View style={styles.switchContainer}>
+                        <View style={[styles.switchContainer, { marginTop: 20 }]}>
                             <Text style={styles.switchLabel}>Add to debts</Text>
                             <Switch
                                 value={addToDebts}
-                                onValueChange={setAddToDebts}
+                                onValueChange={(value) => {
+                                    setAddToDebts(value);
+                                    if (!value) setDebtOption(''); // Reset debt option when toggled off
+                                }}
                                 trackColor={{ false: "#ddd", true: "#741ded" }}
                                 thumbColor={addToDebts ? "#fff" : "#fff"}
                             />
                         </View>
+
+                        {/* Additional Options for Debt */}
+                        {addToDebts && (
+                            <View style={styles.debtOptionsContainer}>
+                                <View style={styles.line}></View>
+                                <View style={styles.debtContainer}>
+                                    {/* Single Person Option */}
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.debtOption,
+                                            debtOption === 'single' && styles.debtOptionSelected,
+                                        ]}
+                                        onPress={() => setDebtOption('single')}
+                                    >
+                                        <Ionicons name="person-outline" size={24} color="#000" />
+                                    </TouchableOpacity>
+
+                                    {/* Group Option */}
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.debtOption,
+                                            debtOption === 'group' && styles.debtOptionSelected,
+                                        ]}
+                                        onPress={() => setDebtOption('group')}
+                                    >
+                                        <UserGroupIcon size={30} color="#000" />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        )}
 
                         {/* Just empty space */}
                         <View style={{ height: 180 }} />

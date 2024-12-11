@@ -182,9 +182,9 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         alignItems: "center",
         paddingHorizontal: 15,
-        paddingVertical: 10,
+        paddingVertical: 13,
         backgroundColor: "#e0e0e0",
-        borderRadius: 8,
+        borderRadius: 10,
         marginHorizontal: 15,
         marginTop: 15,
     },
@@ -193,6 +193,47 @@ const styles = StyleSheet.create({
         fontWeight: "500",
         color: "#333",
     },
+    line:{
+        paddingHorizontal:15,
+        paddingVertical:0.5,
+        backgroundColor: "#b1b1b1",
+        borderRadius: 50,
+        marginBottom: 10,
+    },
+    debtOptionsContainer: {
+        backgroundColor: "#e0e0e0",
+        justifyContent: 'center',
+        borderBottomLeftRadius: 10, // Round the top-left corner
+        borderBottomRightRadius: 10,
+        marginHorizontal: 15,
+        padding: 10,
+        marginTop: -13,
+    },
+    debtContainer: {
+        backgroundColor: "#ededed",
+        //backgroundColor: "rgba(116,29,237,0.12)",
+        flexDirection: 'row',
+        justifyContent: 'center',
+        borderRadius: 15,
+        padding: 5,
+        paddingHorizontal: 5,
+        marginHorizontal: 65,
+    },
+    debtOption: {
+        //backgroundColor: '#e0e0e0',
+        padding: 10,
+        borderRadius: 10,
+        //marginHorizontal: 5,
+        width: 100,
+        height: 50,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    debtOptionSelected: {
+        //backgroundColor: '#741ded', // Highlight the selected option
+        backgroundColor: 'white',
+    },
+
 
     // Add button
     addNewItemButton: {
@@ -269,6 +310,69 @@ const styles = StyleSheet.create({
         width: 40,
         justifyContent: "center",
         alignItems: "center",
+    },
+
+    // Modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContainer: {
+        width: '80%',
+        backgroundColor: 'white',
+        borderRadius: 20,
+        padding: 20,
+        alignItems: 'center',
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginBottom: 20,
+        marginTop: 15,
+    },
+    modalInput: {
+        width: '90%',
+        borderBottomWidth: 1,
+        borderBottomColor: '#ddd',
+        marginBottom: 20,
+        fontSize: 16,
+        padding: 5,
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '90%',
+    },
+    modalSubmitButton: {
+        backgroundColor: colors.primary,
+        borderRadius: 10,
+        paddingHorizontal:30,
+        paddingVertical:15,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalSubmitButtonText: {
+        color: '#fff',
+        fontWeight: 'bold',
+        textAlign: 'center',
+    },
+    modalCancelButton: {
+        backgroundColor: 'white',
+        borderWidth: 2,
+        borderColor: colors.primary,
+        borderRadius: 10,
+        paddingHorizontal:30,
+        paddingVertical:15,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalCancelButtonText: {
+        color: colors.primary,
+        fontWeight: 'bold',
+        textAlign: 'center',
     },
 
 });

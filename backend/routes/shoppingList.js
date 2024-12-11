@@ -45,10 +45,10 @@ router.get('/:householdID/favouriteShopItems', async (req, res) => {
 
 // Add new shop items to shopping list for a specific household
 router.post('/', async (req, res) => {
-    const { items, householdId, userId } = req.body; // Include userId in the request body
+    const { items, householdId, userId, debtOption } = req.body;
 
-    if (!householdId || !items || !Array.isArray(items) || !userId) {
-        return res.status(400).json({ error: 'householdId, an array of items, and userId are required' });
+    if (!householdId || !items || !Array.isArray(items)) {
+        return res.status(400).json({ error: 'householdId and an array of items are required' });
     }
 
     try {
@@ -57,22 +57,24 @@ router.post('/', async (req, res) => {
             const itemRef = db.collection('shoppingList').doc();
             batch.set(itemRef, {
                 name: item.name,
-                quantity: item.quantity || 1, // Default quantity is 1
+                quantity: item.quantity || 1,
                 purchased: false,
-                householdId, // Associate the item with the household
-                createdBy: userId, // Set the userId as createdBy
+                householdId,
+                createdBy: userId,
+                debtOption: debtOption || null,
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
             });
         });
 
         await batch.commit(); // Execute the batch operation
-        console.log(`${items.length} items added to householdId: ${householdId} by user: ${userId}`);
+        console.log(`${items.length} items added to householdId: ${householdId}`);
         res.status(201).json({ message: `${items.length} items added successfully` });
     } catch (error) {
         console.error('Error adding items to shopping list:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 // Add a new favorite shopping list item for a specific household
@@ -101,35 +103,21 @@ router.post('/:householdID/favouriteShopItems', async (req, res) => {
 });
 
 // Mark an item as purchased
-router.put('/:id/purchase', async (req, res) => {
-
-    try {
-        const itemRef = db.collection('shoppingList').doc(req.params.id);
-        await itemRef.update({ purchased: true });
-        console.log(`Item with ID ${req.params.id} marked as purchased`);
-        res.status(200).json({ message: 'Item marked as purchased' });
-    } catch (error) {
-        console.error('Error updating shopping list item:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// Update an item
 router.put('/:id', async (req, res) => {
-    console.log(`Received PUT request for /shopping-list/${req.params.id} with data:`, req.body);
     try {
+        const { purchased } = req.body;
         const itemRef = db.collection('shoppingList').doc(req.params.id);
-        await itemRef.update({
-            name: req.body.name,
-            quantity: req.body.quantity,
-        });
-        console.log(`Item with ID ${req.params.id} updated`);
+
+        await itemRef.update({ purchased });
+
+        console.log(`Item with ID ${req.params.id} updated to purchased: ${purchased}`);
         res.status(200).json({ message: 'Item updated successfully' });
     } catch (error) {
         console.error('Error updating shopping list item:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 // Delete an item
 router.delete('/:id', async (req, res) => {
@@ -193,6 +181,63 @@ router.get('/users/:userId', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+// Create debt for a bought item from shopping list
+router.post('/debts', async (req, res) => {
+    const { amount, creditor, debtor, householdId, relatedTransactionId, isSettled } = req.body;
+
+    if (!amount || !creditor || !debtor || !householdId || !relatedTransactionId) {
+        return res.status(400).json({ error: 'Missing required fields.' });
+    }
+
+    try {
+        const debtRef = db.collection('debts').doc();
+        const debtData = {
+            amount,
+            creditor,
+            debtor,
+            householdId,
+            relatedTransactionId,
+            isSettled: isSettled || false,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        await debtRef.set(debtData);
+
+        res.status(201).json({ id: debtRef.id, ...debtData });
+    } catch (error) {
+        console.error('Error creating debt:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.post('/transactions', async (req, res) => {
+    const { householdId, creditor, participants, amount, description } = req.body;
+
+    if (!householdId || !creditor || !participants || participants.length === 0 || !amount) {
+        return res.status(400).json({ error: 'Missing required fields.' });
+    }
+
+    try {
+        const transactionRef = db.collection('transactions').doc();
+        const transactionData = {
+            householdId,
+            creditor,
+            participants,
+            amount,
+            description,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        await transactionRef.set(transactionData);
+
+        res.status(201).json({ id: transactionRef.id, ...transactionData });
+    } catch (error) {
+        console.error('Error creating transaction:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
 
 
 
