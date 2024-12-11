@@ -4,20 +4,18 @@ const express = require('express');
 const router = express.Router();
 const admin = require('firebase-admin');
 const db = admin.firestore();
-const moment = require('moment');
 
-// Get all debts
-// GET /debts
+// GET /debts?householdId=...
+// Returns all one-on-one debts for the given household
 router.get('/', async (req, res) => {
     console.log('Received GET request for /debts');
     const householdId = req.query.householdId;
+    if (!householdId) {
+        return res.status(400).json({ error: 'householdId is required' });
+    }
 
     try {
-        let debtsRef = db.collection('debts');
-        if (householdId) {
-            debtsRef = debtsRef.where('householdId', '==', householdId);
-        }
-
+        let debtsRef = db.collection('debts').where('householdId', '==', householdId);
         const snapshot = await debtsRef.get();
         const debts = [];
         snapshot.forEach((doc) => {
@@ -28,9 +26,7 @@ router.get('/', async (req, res) => {
             debts.push({ id: doc.id, ...data });
         });
 
-        await processDueRecurringDebts(); // This might need to consider householdId as well
-
-        console.log(`Sending ${debts.length} debts`);
+        console.log(`Sending ${debts.length} debts for householdId ${householdId}`);
         res.status(200).json(debts);
     } catch (error) {
         console.error('Error fetching debts:', error);
@@ -38,206 +34,91 @@ router.get('/', async (req, res) => {
     }
 });
 
-async function processDueRecurringDebts() {
-    const recurringDebtsRef = db.collection('debts').where('isRecurring', '==', true);
-    const snapshot = await recurringDebtsRef.get();
-
-    const batch = db.batch();
-    const now = moment().startOf('day');
-
-    snapshot.forEach((doc) => {
-        const data = doc.data();
-        const nextPaymentDate = data.nextPaymentDate ? data.nextPaymentDate.toDate() : null;
-
-        if (nextPaymentDate && moment(nextPaymentDate).isSameOrBefore(now)) {
-            // Create a new debt instance
-            const newDebtData = {
-                creditor: data.creditor,
-                debtor: data.debtor,
-                amount: data.amount,
-                description: data.description,
-                isSettled: false,
-                timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                isRecurringInstance: true,
-                parentRecurringDebtId: doc.id,
-            };
-            const newDebtRef = db.collection('debts').doc();
-            batch.set(newDebtRef, newDebtData);
-
-            // Update nextPaymentDate based on recurrenceInterval
-            let newNextPaymentDate;
-            switch (data.recurrenceInterval) {
-                case 'weekly':
-                    newNextPaymentDate = moment(nextPaymentDate).add(1, 'weeks');
-                    break;
-                case 'biweekly':
-                    newNextPaymentDate = moment(nextPaymentDate).add(2, 'weeks');
-                    break;
-                case 'monthly':
-                    newNextPaymentDate = moment(nextPaymentDate).add(1, 'months');
-                    break;
-                case 'semiannually':
-                    newNextPaymentDate = moment(nextPaymentDate).add(6, 'months');
-                    break;
-                default:
-                    // 'once' or unknown interval
-                    newNextPaymentDate = null;
-                    break;
-            }
-
-            // Update the recurring debt's nextPaymentDate
-            const recurringDebtRef = db.collection('debts').doc(doc.id);
-            batch.update(recurringDebtRef, {
-                nextPaymentDate: newNextPaymentDate ? admin.firestore.Timestamp.fromDate(newNextPaymentDate.toDate()) : null,
-            });
-        }
-    });
-
-    // Commit the batch
-    await batch.commit();
-}
-
-// Get recurring debts
-router.get('/recurring', async (req, res) => {
-    console.log('Received GET request for /debts/recurring');
-    const householdId = req.query.householdId;
-
-    try {
-        let debtsRef = db.collection('debts').where('isRecurring', '==', true);
-        if (householdId) {
-            debtsRef = debtsRef.where('householdId', '==', householdId);
-        }
-
-        const snapshot = await debtsRef.get();
-        const recurringDebts = [];
-        snapshot.forEach((doc) => {
-            const data = doc.data();
-            if (data.startDate && data.startDate.toDate) {
-                data.startDate = data.startDate.toDate().toISOString();
-            }
-            if (data.nextPaymentDate && data.nextPaymentDate.toDate) {
-                data.nextPaymentDate = data.nextPaymentDate.toDate().toISOString();
-            }
-            recurringDebts.push({ id: doc.id, ...data });
-        });
-        res.status(200).json(recurringDebts);
-    } catch (error) {
-        console.error('Error fetching recurring debts:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// Add a new debt
-router.post('/', async (req, res) => {
-    console.log('Received POST request for /debts with data:', req.body);
-    try {
-        const debtData = {
-            creditor: req.body.creditor,
-            debtor: req.body.debtor,
-            amount: req.body.amount,
-            description: req.body.description || '',
-            isSettled: false,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            isRecurring: req.body.isRecurring || false,
-            recurrenceInterval: req.body.isRecurring ? req.body.recurrenceInterval : null,
-            startDate: req.body.isRecurring ? admin.firestore.Timestamp.fromDate(new Date(req.body.startDate)) : null,
-            nextPaymentDate: req.body.isRecurring ? admin.firestore.Timestamp.fromDate(new Date(req.body.startDate)) : null,
-            householdId: req.body.householdId, // <<-- Make sure to store householdId
-        };
-
-        const docRef = await db.collection('debts').add(debtData);
-        console.log(`Added new debt with ID: ${docRef.id}`);
-        res.status(201).json({ id: docRef.id, ...debtData });
-    } catch (error) {
-        console.error('Error adding debt:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// Update a debt
-router.put('/:id', async (req, res) => {
-    console.log(`Received PUT request for /debts/${req.params.id}`);
-    try {
-        const debtRef = db.collection('debts').doc(req.params.id);
-
-        const updateData = {
-            creditor: req.body.creditor,
-            debtor: req.body.debtor,
-            amount: req.body.amount,
-            description: req.body.description || '',
-            isRecurring: !!req.body.isRecurring,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            recurrenceInterval: req.body.isRecurring ? req.body.recurrenceInterval : null,
-            startDate: req.body.isRecurring && req.body.startDate
-                ? admin.firestore.Timestamp.fromDate(new Date(req.body.startDate))
-                : null,
-            nextPaymentDate: req.body.isRecurring && req.body.nextPaymentDate
-                ? admin.firestore.Timestamp.fromDate(new Date(req.body.nextPaymentDate))
-                : null,
-        };
-
-        await debtRef.update(updateData);
-        console.log(`Debt with ID ${req.params.id} updated`);
-        res.status(200).json({ message: 'Debt updated successfully' });
-    } catch (error) {
-        console.error('Error updating debt:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// Settle a debt
+// POST /debts/settle
+// Body: { debtor, creditor, householdId }
+// This will remove all debts from debtor->creditor, sum them up, and create a settlement transaction.
 router.post('/settle', async (req, res) => {
-    console.log(`Received POST request for /debts/settle`);
+    console.log('Received POST request for /debts/settle with data:', req.body);
+    const { debtor, creditor, householdId } = req.body;
+
+    if (!debtor || !creditor || !householdId) {
+        return res.status(400).json({ error: 'Debtor, creditor, and householdId are required' });
+    }
+
     try {
-        const { debtor, creditor } = req.body;
-
-        if (!debtor || !creditor) {
-            return res.status(400).json({ error: 'Debtor and creditor are required' });
-        }
-
-        // Find all unsettled debts between debtor and creditor
+        // Find all debts from debtor to creditor in this household
         const debtsRef = db.collection('debts')
             .where('debtor', '==', debtor)
             .where('creditor', '==', creditor)
-            .where('isSettled', '==', false);
-        const debtsSnapshot = await debtsRef.get();
+            .where('householdId', '==', householdId);
 
+        const debtsSnapshot = await debtsRef.get();
         if (debtsSnapshot.empty) {
-            return res.status(404).json({ error: 'No debts found between these users' });
+            return res.status(404).json({ error: 'No debts found between these users in this household' });
         }
 
         let totalAmount = 0;
         const batch = db.batch();
         debtsSnapshot.forEach((doc) => {
-            const debtData = doc.data();
-            totalAmount += debtData.amount;
-            // Mark the debt as settled
-            batch.update(doc.ref, { isSettled: true });
+            const data = doc.data();
+            totalAmount += data.amount;
+            batch.delete(doc.ref); // remove the debt
         });
 
-        // Create a new transaction that nullifies the debt
-        const settlementDebtData = {
+        // Create a new settlement transaction
+        const transactionRef = db.collection('transactions').doc();
+        const transactionData = {
+            // The debtor now acts as "creditor" in this record, because they are paying the old creditor.
             creditor: debtor,
-            debtor: creditor,
+            participants: [creditor],
             amount: totalAmount,
-            description: 'Debt Settled',
-            isSettled: true,
+            description: "Debt Settled",
+            householdId,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            isSettlement: true
         };
-        const newDebtRef = db.collection('debts').doc();
-        batch.set(newDebtRef, settlementDebtData);
+        batch.set(transactionRef, transactionData);
 
-        // Commit the batch
         await batch.commit();
 
-        res.status(200).json({ message: 'Debts settled successfully' });
+        console.log(`Debts settled. Created settlement transaction with ID: ${transactionRef.id}`);
+        res.status(200).json({ message: 'Debts settled successfully', settlementTransactionId: transactionRef.id });
+    } catch (error) {
+        console.error('Error settling debts:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// POST /debts/settle-one
+// Body: { debtId } - settle a single debt by marking isSettled = true
+// or deleting the doc if fully paid.
+router.post('/settle-one', async (req, res) => {
+    console.log(`Received POST request for /debts/settle-one with data:`, req.body);
+    const { debtId } = req.body;
+
+    if (!debtId) {
+        return res.status(400).json({ error: 'debtId is required' });
+    }
+
+    try {
+        const debtRef = db.collection('debts').doc(debtId);
+        const debtDoc = await debtRef.get();
+        if (!debtDoc.exists) {
+            return res.status(404).json({ error: 'Debt not found' });
+        }
+
+        // Mark it as settled
+        await debtRef.update({ isSettled: true });
+        console.log(`Debt with ID ${debtId} settled`);
+        res.status(200).json({ message: 'Debt settled successfully' });
     } catch (error) {
         console.error('Error settling debt:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-// Delete a debt
+// DELETE /debts/:id
+// Deletes a single debt document.
 router.delete('/:id', async (req, res) => {
     console.log(`Received DELETE request for /debts/${req.params.id}`);
     try {

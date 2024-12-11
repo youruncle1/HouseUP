@@ -1,6 +1,6 @@
 // screens/DebtScreen.js
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -14,111 +14,82 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { useAppContext } from '../AppContext'; // <<-- Import useAppContext
+import { useAppContext } from '../AppContext';
 import api from '../services/api';
-import styles from '../styles/DebtStyles';
 import colors from '../styles/MainStyles';
 
 export default function DebtScreen() {
     const navigation = useNavigation();
-    const { currentHousehold } = useAppContext(); // <<-- Access currentHousehold
+    const { currentHousehold } = useAppContext();
     const [debts, setDebts] = useState([]);
     const [transactions, setTransactions] = useState([]);
-    const [recurringDebts, setRecurringDebts] = useState([]);
+    const [householdMembers, setHouseholdMembers] = useState([]);
 
     useFocusEffect(
         React.useCallback(() => {
-            fetchDebts();
-        }, [currentHousehold]) // refetch when household changes
+            if (currentHousehold?.id) {
+                fetchData();
+            }
+        }, [currentHousehold])
     );
 
-    const getTimestampValue = (timestamp) => {
-        if (timestamp) {
-            if (typeof timestamp === 'string') {
-                const time = new Date(timestamp).getTime();
-                if (!isNaN(time)) {
-                    return time;
-                }
-            }
-        }
-        return null;
-    };
-
-    const fetchDebts = async () => {
-        if (!currentHousehold?.id) return; // Ensure household is selected
-
+    const fetchData = async () => {
         try {
-            // Include householdId in query
-            const response = await api.get(`/debts?householdId=${currentHousehold.id}`);
-            const allDebts = response.data.filter((d) => d.householdId === currentHousehold.id);
+            // Fetch users
+            const usersRes = await api.get(`/users?householdId=${currentHousehold.id}`);
+            const members = usersRes.data;
+            setHouseholdMembers(members);
 
-            // Exclude recurring templates (just as before)
-            const filteredDebts = allDebts.filter((debt) => !debt.isRecurring);
+            // Fetch debts
+            const debtsRes = await api.get(`/debts?householdId=${currentHousehold.id}`);
+            const rawDebts = debtsRes.data;
 
-            // Summarize debts
-            const debtSummary = {};
-            filteredDebts.forEach((debt) => {
-                if (!debt.isSettled) {
-                    const key = `${debt.debtor}->${debt.creditor}`;
-                    if (debtSummary[key]) {
-                        debtSummary[key] += debt.amount;
-                    } else {
-                        debtSummary[key] = debt.amount;
-                    }
+            // Aggregate debts by (debtor->creditor)
+            const aggregated = {};
+            rawDebts.forEach(d => {
+                const key = `${d.debtor}->${d.creditor}`;
+                if (!aggregated[key]) {
+                    aggregated[key] = 0;
                 }
+                aggregated[key] += d.amount;
             });
 
-            const debtList = Object.keys(debtSummary).map((key) => {
+            // Convert aggregated object into an array
+            const aggregatedDebts = Object.keys(aggregated).map(key => {
                 const [debtor, creditor] = key.split('->');
-                return {
-                    debtor,
-                    creditor,
-                    amount: debtSummary[key],
-                };
+                return { debtor, creditor, amount: aggregated[key] };
             });
 
-            // Sort transactions
-            const sortedTransactions = filteredDebts
-                .filter((debt) => getTimestampValue(debt.timestamp))
-                .sort((a, b) => {
-                    const timeA = getTimestampValue(a.timestamp);
-                    const timeB = getTimestampValue(b.timestamp);
-                    return timeB - timeA;
-                });
+            setDebts(aggregatedDebts);
 
-            // Fetch recurring debts (filtered by household)
-            const recurringResponse = await api.get(`/debts/recurring?householdId=${currentHousehold.id}`);
-            const recurringDebtsData = recurringResponse.data.filter((d) => d.householdId === currentHousehold.id);
-
-            recurringDebtsData.sort((a, b) => {
-                const dateA = new Date(a.nextPaymentDate);
-                const dateB = new Date(b.nextPaymentDate);
-                return dateA - dateB;
-            });
-
-            setDebts(debtList);
-            setTransactions(sortedTransactions);
-            setRecurringDebts(recurringDebtsData);
+            // Fetch transactions
+            const transRes = await api.get(`/transactions?householdId=${currentHousehold.id}`);
+            const allTransactions = transRes.data;
+            allTransactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            setTransactions(allTransactions);
         } catch (error) {
-            console.error('Error fetching debts:', error);
+            console.error('Error fetching data:', error);
         }
     };
 
-    const settleDebt = (item) => {
+
+    const settleDebt = (debtItem) => {
         Alert.alert(
             'Settle Debt',
-            `Are you sure you want to settle all debts from ${item.debtor} to ${item.creditor}?`,
+            `Are you sure you want to settle all debts where ${getUserName(debtItem.debtor)} owes ${getUserName(debtItem.creditor)}?`,
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
                     text: 'Yes',
                     onPress: async () => {
                         try {
+                            // Now call the new /debts/settle endpoint
                             await api.post('/debts/settle', {
-                                debtor: item.debtor,
-                                creditor: item.creditor,
+                                debtor: debtItem.debtor,
+                                creditor: debtItem.creditor,
+                                householdId: currentHousehold.id
                             });
-                            fetchDebts();
+                            fetchData();
                         } catch (error) {
                             console.error('Error settling debt:', error);
                         }
@@ -129,12 +100,17 @@ export default function DebtScreen() {
         );
     };
 
-    const renderDebtSummaryItem = ({ item }) => (
+    const getUserName = (userId) => {
+        const member = householdMembers.find(m => m.id === userId);
+        return member ? member.name : userId;
+    };
+
+    const renderDebtItem = ({ item }) => (
         <TouchableOpacity onPress={() => settleDebt(item)}>
             <View style={styles.debtItem}>
                 <View style={styles.debtInfo}>
                     <Text style={styles.debtText}>
-                        {item.debtor} owes {item.creditor}
+                        {getUserName(item.debtor)} owes {getUserName(item.creditor)}
                     </Text>
                     <Text style={styles.amountText}>${item.amount.toFixed(2)}</Text>
                 </View>
@@ -142,61 +118,82 @@ export default function DebtScreen() {
         </TouchableOpacity>
     );
 
-    const renderRecurringDebtItem = ({ item }) => {
-        const nextPaymentDate = new Date(item.nextPaymentDate).toLocaleDateString();
-        return (
-            <TouchableOpacity onPress={() => navigation.navigate('DebtForm', { mode: 'edit', debt: item })}>
-                <View style={styles.debtItem}>
-                    <View style={styles.debtInfo}>
-                        <Text style={styles.debtText}>
-                            {item.debtor} owes {item.creditor}
-                        </Text>
-                        <Text style={styles.amountText}>${item.amount.toFixed(2)}</Text>
-                    </View>
-                    {item.description ? (
-                        <Text style={styles.debtDescription}>{item.description}</Text>
-                    ) : null}
-                    <Text style={styles.settledText}>
-                        Next Payment Date: {nextPaymentDate}
-                    </Text>
-                </View>
-            </TouchableOpacity>
-        );
-    };
-
     const renderTransactionItem = ({ item }) => {
-        let dateString = 'Unknown Date';
-        const timestampValue = getTimestampValue(item.timestamp);
+        const date = new Date(item.timestamp).toLocaleDateString();
+        const isSettlement = item.isSettlement === true;
 
-        if (timestampValue) {
-            const date = new Date(timestampValue);
-            dateString = date.toLocaleDateString();
-        }
+        const deleteTransaction = () => {
+            Alert.alert(
+                'Delete Transaction',
+                'Are you sure you want to delete this transaction?',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: async () => {
+                            try {
+                                await api.delete(`/transactions/${item.id}`);
+                                fetchData();
+                            } catch (error) {
+                                console.error('Error deleting transaction:', error);
+                            }
+                        },
+                    },
+                ],
+                { cancelable: false }
+            );
+        };
 
         return (
-            <TouchableOpacity onPress={() => navigation.navigate('DebtForm', { mode: 'edit', debt: item })}>
-                <View style={styles.debtItem}>
-                    <View style={styles.debtInfo}>
+            <View style={styles.debtItem}>
+                <View style={styles.debtInfo}>
+                    {isSettlement ? (
                         <Text style={styles.debtText}>
-                            {item.debtor} {item.isSettled ? 'paid' : 'owes'} {item.creditor}
+                            Settlement: {getUserName(item.creditor)} settled ${Number(item.amount).toFixed(2)}
                         </Text>
-                        <Text style={styles.amountText}>${item.amount.toFixed(2)}</Text>
+                    ) : (
+                        <Text style={styles.debtText}>
+                            {getUserName(item.creditor)} paid ${Number(item.amount).toFixed(2)}
+                        </Text>
+                    )}
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <TouchableOpacity onPress={deleteTransaction} style={{ marginLeft: 10 }}>
+                            <Ionicons name="trash-outline" size={24} color="red" />
+                        </TouchableOpacity>
+                        {!isSettlement && (
+                            <TouchableOpacity onPress={async () => {
+                                try {
+                                    const res = await api.get(`/transactions/${item.id}/can-edit`);
+                                    if (res.data.canEdit) {
+                                        navigation.navigate('DebtForm', { mode: 'edit', transaction: item });
+                                    } else {
+                                        Alert.alert('Cannot Edit', res.data.reason || 'This transaction cannot be edited.');
+                                    }
+                                } catch (error) {
+                                    console.error('Error checking can-edit:', error);
+                                    Alert.alert('Error', 'Unable to check if transaction can be edited.');
+                                }
+                            }}>
+                                <Ionicons name="create-outline" size={24} color="blue" />
+                            </TouchableOpacity>
+                        )}
                     </View>
-                    {item.description ? (
-                        <Text style={styles.debtDescription}>{item.description}</Text>
-                    ) : null}
-                    <Text style={styles.settledText}>On {dateString}</Text>
                 </View>
-            </TouchableOpacity>
+                {item.description ? (
+                    <Text style={styles.debtDescription}>{item.description}</Text>
+                ) : null}
+                <Text style={styles.settledText}>On {date}</Text>
+            </View>
         );
     };
+
 
     return (
         <KeyboardAvoidingView
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-            {/* Header copied from ShoppingListScreen style */}
             <View style={styles.header}>
                 <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
                     <Ionicons name="menu" size={24} color="white" />
@@ -216,17 +213,17 @@ export default function DebtScreen() {
                     ) : (
                         <FlatList
                             data={debts}
-                            keyExtractor={(item, index) => index.toString()}
-                            renderItem={renderDebtSummaryItem}
+                            keyExtractor={(item) => `${item.debtor}->${item.creditor}`}
+                            renderItem={renderDebtItem}
                             scrollEnabled={false}
                             contentContainerStyle={{ paddingBottom: 10 }}
                         />
                     )}
                 </View>
 
-                {/* Recent Payments Section */}
+                {/* Recent Transactions Section */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Recent Payments</Text>
+                    <Text style={styles.sectionTitle}>Recent Transactions</Text>
                     {transactions.length === 0 ? (
                         <Text style={styles.noDataText}>No transactions found.</Text>
                     ) : (
@@ -249,32 +246,6 @@ export default function DebtScreen() {
                         </>
                     )}
                 </View>
-
-                {/* Upcoming Recurring Payments Section */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Upcoming Recurring Payments</Text>
-                    {recurringDebts.length === 0 ? (
-                        <Text style={styles.noDataText}>No upcoming recurring payments.</Text>
-                    ) : (
-                        <>
-                            <FlatList
-                                data={recurringDebts.slice(0, 1)}
-                                keyExtractor={(item) => item.id}
-                                renderItem={renderRecurringDebtItem}
-                                scrollEnabled={false}
-                                contentContainerStyle={{ paddingBottom: 10 }}
-                            />
-                            {recurringDebts.length > 1 && (
-                                <TouchableOpacity
-                                    onPress={() => navigation.navigate('RecurringDebts')}
-                                    style={styles.showMoreButton}
-                                >
-                                    <Text style={styles.showMoreText}>Show More</Text>
-                                </TouchableOpacity>
-                            )}
-                        </>
-                    )}
-                </View>
             </ScrollView>
 
             {/* Floating Add Button */}
@@ -287,3 +258,105 @@ export default function DebtScreen() {
         </KeyboardAvoidingView>
     );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#f7f7f7',
+    },
+    header: {
+        paddingTop: 20,
+        paddingBottom: 10,
+        backgroundColor: colors.primary,
+        alignItems: 'center',
+        flexDirection: 'row',
+    },
+    menuButton: {
+        marginLeft: 10,
+        marginRight: 10,
+    },
+    headerContent: {
+        flex: 1,
+    },
+    householdName: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#fff',
+    },
+    itemCounter: {
+        color: '#fff',
+    },
+    scrollContainer: {
+        flex: 1,
+    },
+    section: {
+        marginTop: 20,
+        paddingHorizontal: 15,
+    },
+    sectionTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: colors.primary,
+        marginBottom: 10,
+    },
+    noDataText: {
+        fontSize: 16,
+        color: '#666',
+        textAlign: 'center',
+        marginTop: 10,
+    },
+    showMoreButton: {
+        alignItems: 'center',
+        paddingVertical: 10,
+    },
+    showMoreText: {
+        color: colors.primary,
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    addButton: {
+        backgroundColor: colors.primary,
+        borderRadius: 30,
+        width: 60,
+        height: 60,
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'absolute',
+        bottom: 30,
+        alignSelf: 'center',
+    },
+    debtItem: {
+        backgroundColor: '#e0e0e0',
+        padding: 15,
+        marginHorizontal: 15,
+        marginTop: 10,
+        borderRadius: 8,
+        elevation: 1,
+    },
+    debtInfo: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    debtText: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    amountText: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: colors.primary,
+    },
+    debtDescription: {
+        fontSize: 14,
+        color: '#666',
+        marginTop: 5,
+    },
+    settledText: {
+        marginTop: 10,
+        fontSize: 16,
+        color: '#4caf50',
+        fontWeight: 'bold',
+        textAlign: 'center',
+    },
+});

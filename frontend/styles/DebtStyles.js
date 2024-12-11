@@ -1,11 +1,11 @@
-import {StyleSheet} from "react-native";
-
+import { StyleSheet } from 'react-native';
 import colors from '../styles/MainStyles';
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#f7f7f7',
+        justifyContent: 'center', // From the first styles
     },
     header: {
         backgroundColor: colors.primary,
@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
         color: '#fff',
     },
     menuButton: {
-        padding: 10, // Ensure touchable area for the button
+        padding: 10,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -91,23 +91,24 @@ const styles = StyleSheet.create({
     form: {
         padding: 15,
         backgroundColor: '#fff',
-        borderTopColor: '#ddd',
-        borderTopWidth: 1,
+        marginHorizontal: 20, // From the first styles
+        borderRadius: 8,
+        elevation: 2,
     },
     formTitle: {
-        fontSize: 20,
+        fontSize: 24, // From the first styles
         fontWeight: 'bold',
-        marginBottom: 10,
+        marginBottom: 20, // From the first styles
         color: '#6200ee',
         textAlign: 'center',
     },
     input: {
-        borderColor: '#ddd',
+        borderColor: colors.background,
         borderWidth: 1,
         paddingHorizontal: 15,
         paddingVertical: 10,
         borderRadius: 5,
-        marginBottom: 10,
+        marginBottom: 15, // From the first styles
         fontSize: 16,
     },
     addButton: {
@@ -123,6 +124,34 @@ const styles = StyleSheet.create({
     },
     addButtonText: {
         color: '#fff',
+        fontSize: 18,
+    },
+    checkboxContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    label: {
+        fontSize: 16,
+        marginRight: 10,
+    },
+    datePickerContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    pickerContainer: {
+        marginBottom: 15,
+    },
+    deleteButton: {
+        backgroundColor: '#d32f2f',
+        paddingVertical: 12,
+        borderRadius: 5,
+        alignItems: 'center',
+        marginTop: 10,
+    },
+    deleteButtonText: {
+        color: colors.text,
         fontSize: 18,
     },
     scrollContainer: {

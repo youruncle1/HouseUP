@@ -10,38 +10,93 @@ import {
     StyleSheet,
     KeyboardAvoidingView,
     Platform,
+    FlatList
 } from 'react-native';
 import api from '../services/api';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { Picker } from '@react-native-picker/picker';
+import RNPickerSelect from 'react-native-picker-select';
 import { useAppContext } from '../AppContext';
+import colors from "../styles/MainStyles";
 
 export default function DebtFormScreen({ navigation, route }) {
-    const { mode, debt } = route.params;
-    const [creditor, setCreditor] = useState(debt ? debt.creditor : '');
-    const [debtor, setDebtor] = useState(debt ? debt.debtor : '');
-    const [amount, setAmount] = useState(debt ? debt.amount.toString() : '');
-    const [description, setDescription] = useState(debt ? debt.description : '');
-    const [isRecurring, setIsRecurring] = useState(debt ? debt.isRecurring : false);
-    const [startDate, setStartDate] = useState(debt && debt.startDate ? new Date(debt.startDate) : new Date());
-    const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-    const [recurrenceInterval, setRecurrenceInterval] = useState(debt ? debt.recurrenceInterval : 'once');
-    const { currentHousehold } = useAppContext();
+    const { mode } = route.params;
+    const { currentHousehold, currentUser } = useAppContext();
+
+    const [householdMembers, setHouseholdMembers] = useState([]);
+    const [creditor, setCreditor] = useState(currentUser.id);
+    const [selectedParticipants, setSelectedParticipants] = useState([currentUser.id]); // Always include creditor
+    const [amount, setAmount] = useState('');
+    const [description, setDescription] = useState('');
 
     useEffect(() => {
         navigation.setOptions({
-            title: mode === 'add' ? 'Add Debt' : 'Edit Debt',
+            title: mode === 'add' ? 'Add Transaction' : 'Edit Transaction',
         });
     }, [navigation, mode]);
 
+    useEffect(() => {
+        fetchHouseholdMembers();
+    }, [currentHousehold]);
+
+    useEffect(() => {
+        if (mode === 'edit') {
+            const { transaction } = route.params;
+            setCreditor(transaction.creditor);
+            setSelectedParticipants(transaction.participants);
+            setAmount(transaction.amount.toString());
+            setDescription(transaction.description || '');
+        }
+    }, [mode, route.params]);
+
+
+    const fetchHouseholdMembers = async () => {
+        if (!currentHousehold || !currentHousehold.id) return;
+        try {
+            const response = await api.get(`/users?householdId=${currentHousehold.id}`);
+            const members = response.data;
+            setHouseholdMembers(members);
+
+            if (mode === 'add') {
+                // selects all members for default
+                const allMemberIds = members.map(m => m.id);
+                setSelectedParticipants(allMemberIds);
+            } else if (mode === 'edit') {
+                // do nothing - selects the saved participants using UseEffect above
+            }
+        } catch (error) {
+            console.error('Error fetching household members:', error);
+        }
+    };
+
+    const toggleParticipant = (userId) => {
+        setSelectedParticipants((prev) => {
+            if (prev.includes(userId)) {
+                return prev.filter(id => id !== userId);
+            } else {
+                return [...prev, userId];
+            }
+        });
+    };
+
+    const memberItems = householdMembers.map(m => ({ label: m.name, value: m.id }));
+
+    const numberOfParticipants = selectedParticipants.length;
+    const totalAmount = parseFloat(amount) || 0;
+    const perPersonShare = numberOfParticipants > 0 ? totalAmount / numberOfParticipants : 0;
+
+    const getUserName = (id) => {
+        const m = householdMembers.find(u => u.id === id);
+        return m ? m.name : id;
+    };
+
     const handleSubmit = async () => {
-        if (
-            creditor.trim() === '' ||
-            debtor.trim() === '' ||
-            amount.trim() === ''
-        ) {
-            alert('Please fill in all required fields.');
+        if (selectedParticipants.length === 0) {
+            alert('Please select at least one participant (other than none).');
+            return;
+        }
+
+        if (selectedParticipants.length === 1 && selectedParticipants[0] === creditor) {
+            alert('You cannot create a transaction where only the creditor is selected. At least one other participant must be selected.');
             return;
         }
 
@@ -52,50 +107,24 @@ export default function DebtFormScreen({ navigation, route }) {
         }
 
         try {
-            const debtData = {
+            const transactionData = {
                 creditor,
-                debtor,
-                amount: amountValue,
+                participants: selectedParticipants,
+                amount: parseFloat(amount),
                 description,
-                isRecurring,
-                recurrenceInterval: isRecurring ? recurrenceInterval : null,
-                startDate: isRecurring ? startDate.toISOString() : null,
-                nextPaymentDate: isRecurring ? startDate.toISOString() : null,
                 householdId: currentHousehold.id,
             };
 
             if (mode === 'add') {
-                await api.post('/debts', debtData);
+                await api.post('/transactions', transactionData);
             } else if (mode === 'edit') {
-                await api.put(`/debts/${debt.id}`, debtData);
+                const { transaction } = route.params;
+                await api.put(`/transactions/${transaction.id}`, transactionData);
             }
             navigation.goBack();
         } catch (error) {
-            console.error(`Error ${mode === 'add' ? 'adding' : 'editing'} debt:`, error);
+            console.error(`Error ${mode === 'add' ? 'adding' : 'editing'} transaction:`, error);
         }
-    };
-
-    const handleDelete = async () => {
-        Alert.alert(
-            'Delete Debt',
-            'Are you sure you want to delete this debt?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await api.delete(`/debts/${debt.id}`);
-                            navigation.goBack();
-                        } catch (error) {
-                            console.error('Error deleting debt:', error);
-                        }
-                    },
-                },
-            ],
-            { cancelable: false }
-        );
     };
 
     return (
@@ -104,19 +133,19 @@ export default function DebtFormScreen({ navigation, route }) {
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
             <View style={styles.form}>
-                <Text style={styles.formTitle}>{mode === 'add' ? 'Add New Debt' : 'Edit Debt'}</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Creditor"
+                <Text style={styles.label}>Creditor (who paid):</Text>
+                <RNPickerSelect
+                    items={memberItems}
+                    onValueChange={(value) => {
+                        setCreditor(value);
+                    }}
                     value={creditor}
-                    onChangeText={setCreditor}
+                    placeholder={{ label: 'Select Creditor', value: null }}
+                    style={pickerSelectStyles}
+                    useNativeAndroidPickerStyle={false}
                 />
-                <TextInput
-                    style={styles.input}
-                    placeholder="Debtor"
-                    value={debtor}
-                    onChangeText={setDebtor}
-                />
+
+                <Text style={styles.label}>Total Amount:</Text>
                 <TextInput
                     style={styles.input}
                     placeholder="Amount"
@@ -124,94 +153,47 @@ export default function DebtFormScreen({ navigation, route }) {
                     onChangeText={setAmount}
                     keyboardType="numeric"
                 />
+
+                <Text style={styles.label}>Select Participants :</Text>
+                {householdMembers.map(member => {
+                    const isChecked = selectedParticipants.includes(member.id);
+                    return (
+                        <View style={styles.participantRow} key={member.id}>
+                            <TouchableOpacity onPress={() => toggleParticipant(member.id)}>
+                                <View style={[styles.checkbox, isChecked && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+                                    {isChecked && <Ionicons name="checkmark" size={18} color="white" />}
+                                </View>
+                            </TouchableOpacity>
+                            <Text style={styles.memberName}>{member.name}</Text>
+                            {isChecked && numberOfParticipants > 0 && (
+                                <Text style={styles.shareAmount}>
+                                    Share: {perPersonShare.toFixed(2)}
+                                </Text>
+                            )}
+                        </View>
+                    );
+                })}
+
+                <Text style={styles.label}>Description (Optional):</Text>
                 <TextInput
                     style={styles.input}
-                    placeholder="Description (Optional)"
+                    placeholder="Description"
                     value={description}
                     onChangeText={setDescription}
                 />
-                {/* Scheduled Payment Checkbox */}
-                <View style={styles.checkboxContainer}>
-                    <Text style={styles.label}>Scheduled payment?</Text>
-                    <TouchableOpacity
-                        style={{
-                            width: 24,
-                            height: 24,
-                            borderWidth: 2,
-                            borderColor: isRecurring ? '#6200ee' : '#ddd',
-                            backgroundColor: isRecurring ? '#6200ee' : 'transparent',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                        }}
-                        onPress={() => setIsRecurring(!isRecurring)}
-                    >
-                        {isRecurring && <Ionicons name="checkmark" size={18} color="white" />}
-                    </TouchableOpacity>
-                    {/*<CheckBox*/}
-                    {/*    value={isRecurring}*/}
-                    {/*    onValueChange={(newValue) => setIsRecurring(newValue)}*/}
-                    {/*/>*/}
-                </View>
 
-                {/* Additional Fields for Recurring Payments */}
-                {isRecurring && (
-                    <>
-                        {/* Start Date Picker */}
-                        <TouchableOpacity onPress={() => setShowStartDatePicker(true)}>
-                            <View style={styles.datePickerContainer}>
-                                <Text style={styles.label}>Start Date:</Text>
-                                <Text>{startDate.toLocaleDateString()}</Text>
-                            </View>
-                        </TouchableOpacity>
-                        {showStartDatePicker && (
-                            <DateTimePicker
-                                value={startDate}
-                                mode="date"
-                                display="default"
-                                onChange={(event, selectedDate) => {
-                                    setShowStartDatePicker(false);
-                                    if (selectedDate) {
-                                        setStartDate(selectedDate);
-                                    }
-                                }}
-                            />
-                        )}
-
-                        {/* Recurrence Interval Picker */}
-                        <View style={styles.pickerContainer}>
-                            <Text style={styles.label}>Recurrence Interval:</Text>
-                            <Picker
-                                selectedValue={recurrenceInterval}
-                                onValueChange={(itemValue) => setRecurrenceInterval(itemValue)}
-                            >
-                                <Picker.Item label="Only Once" value="once" />
-                                <Picker.Item label="Weekly" value="weekly" />
-                                <Picker.Item label="Every Two Weeks" value="biweekly" />
-                                <Picker.Item label="Monthly" value="monthly" />
-                                <Picker.Item label="Half a Year" value="semiannually" />
-                            </Picker>
-                        </View>
-                    </>
-                )}
                 <TouchableOpacity style={styles.addButton} onPress={handleSubmit}>
-                    <Text style={styles.addButtonText}>{mode === 'add' ? 'Add Debt' : 'Save Changes'}</Text>
+                    <Text style={styles.addButtonText}>{mode === 'add' ? 'Add Transaction' : 'Save Changes'}</Text>
                 </TouchableOpacity>
-                {mode === 'edit' && (
-                    <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-                        <Text style={styles.deleteButtonText}>Delete Debt</Text>
-                    </TouchableOpacity>
-                )}
             </View>
-
         </KeyboardAvoidingView>
-
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f7f7f7',
+        backgroundColor: colors.background,
         justifyContent: 'center',
     },
     form: {
@@ -221,12 +203,11 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         elevation: 2,
     },
-    formTitle: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginBottom: 20,
-        color: '#6200ee',
-        textAlign: 'center',
+    label: {
+        fontSize: 16,
+        marginBottom: 5,
+        marginTop: 10,
+        color: '#333',
     },
     input: {
         borderColor: '#ddd',
@@ -237,42 +218,63 @@ const styles = StyleSheet.create({
         marginBottom: 15,
         fontSize: 16,
     },
+    participantRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    checkbox: {
+        width: 24,
+        height: 24,
+        borderWidth: 2,
+        borderColor: '#ddd',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 10,
+        borderRadius: 3,
+    },
+    memberName: {
+        fontSize: 16,
+        flex: 1,
+        color: '#333',
+    },
+    shareAmount: {
+        fontSize: 14,
+        color: '#666',
+    },
     addButton: {
-        backgroundColor: '#6200ee',
+        backgroundColor: colors.primary,
         paddingVertical: 12,
         borderRadius: 5,
         alignItems: 'center',
+        marginTop: 20
     },
     addButtonText: {
         color: '#fff',
         fontSize: 18,
+        fontWeight: 'bold',
     },
-    checkboxContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 15,
-    },
-    label: {
+});
+
+const pickerSelectStyles = StyleSheet.create({
+    inputIOS: {
         fontSize: 16,
-        marginRight: 10,
-    },
-    datePickerContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 15,
-    },
-    pickerContainer: {
-        marginBottom: 15,
-    },
-    deleteButton: {
-        backgroundColor: '#d32f2f',
         paddingVertical: 12,
+        paddingHorizontal: 15,
+        borderWidth: 1,
+        borderColor: '#ddd',
         borderRadius: 5,
-        alignItems: 'center',
-        marginTop: 10,
+        color: colors.primary,
+        marginBottom: 15,
     },
-    deleteButtonText: {
-        color: '#fff',
-        fontSize: 18,
+    inputAndroid: {
+        fontSize: 16,
+        paddingHorizontal: 15,
+        paddingVertical: 10,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 5,
+        color: '#333',
+        marginBottom: 15,
     },
 });

@@ -29,6 +29,7 @@ app.get('/', (req, res) => {
 // Import routes
 const debtsRoutes = require('./routes/debts');
 const choresRoutes = require('./routes/chores');
+const transactionsRoutes = require('./routes/transactions');
 const shoppingListRoutes = require('./routes/shoppingList');
 const householdsRoutes = require('./routes/households');
 
@@ -37,6 +38,7 @@ const usersRoutes = require('./routes/users');
 
 // Use routes
 app.use('/debts', debtsRoutes);
+app.use('/transactions', transactionsRoutes);
 app.use('/chores', choresRoutes);
 app.use('/shopping-list', shoppingListRoutes);
 app.use('/households', householdsRoutes);
