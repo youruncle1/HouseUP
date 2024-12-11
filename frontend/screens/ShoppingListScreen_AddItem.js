@@ -17,7 +17,7 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
     const [items, setItems] = useState([]);
     const [tempItem, setTempItem] = useState(null);
     const [favorites, setFavorites] = useState([]);
-    const { currentHousehold } = useAppContext();
+    const { currentHousehold, currentUser } = useAppContext();
     const [addToDebts, setAddToDebts] = useState(false);
 
     // Fetch favorites when component loads
@@ -151,6 +151,7 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
             await api.post('/shopping-list', {
                 items: combinedList, // Send the combined list as an array
                 householdId: currentHousehold.id,
+                userId: currentUser.id, // Include the current user's ID
             });
             console.log('Shopping list updated successfully!');
             navigation.goBack();
@@ -158,6 +159,7 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
             console.error('Error adding items to shopping list:', error.message);
         }
     };
+
 
     return (
         <View style={styles.container}>

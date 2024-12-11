@@ -119,7 +119,7 @@ export default function ShoppingListScreen_Settings({ navigation }) {
                         )}
 
                         {/* Other Settings */}
-                        <View style={styles.switchContainer}>
+                        <View style={[styles.switchContainer, { marginTop: 40 }]}>
                             <Text style={styles.switchLabel}>Show users</Text>
                             <Switch
                                 value={showUserImages}
@@ -128,15 +128,15 @@ export default function ShoppingListScreen_Settings({ navigation }) {
                                 thumbColor={showUserImages  ? "#fff" : "#fff"}
                             />
                         </View>
-                            <View style={styles.switchContainer}>
-                                <Text style={styles.switchLabel}>Hide checked items</Text>
-                                <Switch
-                                    value={hideCheckedItems}
-                                    onValueChange={setHideCheckedItems} // Update global state
-                                    trackColor={{ false: '#ddd', true: '#741ded' }}
-                                    thumbColor={hideCheckedItems ? '#fff' : '#fff'}
-                                />
-                            </View>
+                        <View style={styles.switchContainer}>
+                            <Text style={styles.switchLabel}>Hide checked items</Text>
+                            <Switch
+                                value={hideCheckedItems}
+                                onValueChange={setHideCheckedItems} // Update global state
+                                trackColor={{ false: '#ddd', true: '#741ded' }}
+                                thumbColor={hideCheckedItems ? '#fff' : '#fff'}
+                            />
+                        </View>
                     </>
                 }
                 ListFooterComponent={

@@ -45,10 +45,10 @@ router.get('/:householdID/favouriteShopItems', async (req, res) => {
 
 // Add new shop items to shopping list for a specific household
 router.post('/', async (req, res) => {
-    const { items, householdId } = req.body;
+    const { items, householdId, userId } = req.body; // Include userId in the request body
 
-    if (!householdId || !items || !Array.isArray(items)) {
-        return res.status(400).json({ error: 'householdId and an array of items are required' });
+    if (!householdId || !items || !Array.isArray(items) || !userId) {
+        return res.status(400).json({ error: 'householdId, an array of items, and userId are required' });
     }
 
     try {
@@ -60,18 +60,20 @@ router.post('/', async (req, res) => {
                 quantity: item.quantity || 1, // Default quantity is 1
                 purchased: false,
                 householdId, // Associate the item with the household
+                createdBy: userId, // Set the userId as createdBy
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
             });
         });
 
         await batch.commit(); // Execute the batch operation
-        console.log(`${items.length} items added to householdId: ${householdId}`);
+        console.log(`${items.length} items added to householdId: ${householdId} by user: ${userId}`);
         res.status(201).json({ message: `${items.length} items added successfully` });
     } catch (error) {
         console.error('Error adding items to shopping list:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 // Add a new favorite shopping list item for a specific household
 router.post('/:householdID/favouriteShopItems', async (req, res) => {

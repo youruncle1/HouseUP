@@ -62,7 +62,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#e0e0e0',
-        padding: 10,
         borderRadius: 8,
         marginVertical: 5,
         justifyContent: 'space-between',
@@ -76,10 +75,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 10,
+        marginLeft: 10,
+
     },
     itemName: {
         fontSize: 16,
         flex: 1,
+        padding: 15,
     },
     purchasedItemText: {
         textDecorationLine: 'line-through',
@@ -92,9 +94,9 @@ const styles = StyleSheet.create({
         marginRight: 10,
     },
     profileImage: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         marginHorizontal: 10,
     },
     addButton: {
@@ -127,9 +129,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#e0e0e0',
-        padding: 10,
-        paddingVertical: 13,
-        borderRadius: 15,
+        borderRadius: 12,
         marginVertical: 5,
         marginHorizontal:18,
         justifyContent: 'space-between',
@@ -157,9 +157,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 10,
+        marginLeft: 10,
     },
     deleteButton: {
         marginLeft: 10,
+        marginRight: 10,
     },
 
     // Favorites
@@ -235,6 +237,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         flex: 1,
         marginLeft: 10,
+        padding: 15,
     },
     trashIcon: {
         marginRight: 10,
