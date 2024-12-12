@@ -9,6 +9,7 @@ const admin = require('firebase-admin');
 // Initialize Firebase Admin SDK
 const serviceAccount = require('./serviceAccountKey.json');
 
+// Initialize Firebase Admin SDK
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
 });
@@ -19,14 +20,9 @@ const db = admin.firestore();
 const app = express();
 const PORT = 3000;
 
-// Middleware
+//Middleware
 app.use(cors());
 app.use(bodyParser.json());
-
-// Routes
-app.get('/', (req, res) => {
-    res.send('Backend server is running');
-});
 
 // Import routes
 const debtsRoutes = require('./routes/debts');
@@ -37,23 +33,41 @@ const shoppingListRoutes = require('./routes/shoppingList');
 const householdsRoutes = require('./routes/households');
 const usersRoutes = require('./routes/users');
 
-// routes
+const { generateDueChoresForAllHouseholds } = choresRoutes;
+
+// Use routes
 app.use('/debts', debtsRoutes);
 app.use('/transactions', transactionsRoutes);
-app.use('/chores', choresRoutes);
+app.use('/chores', choresRoutes.router);
 app.use('/shopping-list', shoppingListRoutes);
 app.use('/households', householdsRoutes);
 app.use('/users', usersRoutes);
 
-// recurring transactions auto-updating (00:00)
-cron.schedule('0 0 * * *', () => {
-    console.log('Running processDueRecurringTransactions() at midnight...');
-    processDueRecurringTransactions()
-        .then(() => console.log('Recurring transactions processed'))
-        .catch(err => console.error('Error processing recurring transactions:', err));
+// Cron job for recurring transactions
+cron.schedule('0 0 * * *', async () => {
+    console.log('Running daily cron jobs at midnight...');
+
+    try {
+        // Process recurring transactions
+        await processDueRecurringTransactions();
+        console.log('Recurring transactions processed.');
+    } catch (err) {
+        console.error('Error processing recurring transactions:', err);
+    }
+
+    try {
+        // Generate due chores for all households at midnight
+        await generateDueChoresForAllHouseholds();
+        console.log('Due chores generation completed.');
+    } catch (err) {
+        console.error('Error generating due chores at midnight:', err);
+    }
 });
 
-// Start the server
+app.get('/', (req, res) => {
+    res.send('Backend server is running');
+});
+
 app.listen(PORT, () => {
     console.log(`Backend server is running on http://localhost:${PORT}`);
 });
