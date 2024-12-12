@@ -1,23 +1,26 @@
+// Required imports for components, hooks, styles, and charting libraries
 import React, { useState, useEffect } from 'react';
 import { View, Text, ActivityIndicator, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
-import { useAppContext } from '../AppContext';
-import api from '../services/api';
-import choresStyles from '../styles/ChoresStyles';
-import { LineChart, PieChart, BarChart } from 'react-native-chart-kit';
+import { useAppContext } from '../AppContext'; // Custom context for app-wide data
+import api from '../services/api'; // API service for backend calls
+import { LineChart, PieChart, BarChart } from 'react-native-chart-kit'; // Chart components for visualizing data
 
-import colors from '../styles/MainStyles';
+import choresStyles from '../styles/ChoresStyles'; // Custom styles for chores
+import colors from '../styles/MainStyles'; // Color scheme for consistent UI styling
 
 export default function ChoreStatsScreen({ navigation }) {
-    const { currentHousehold, currentUser } = useAppContext();
+    const { currentHousehold, currentUser } = useAppContext(); // Get the current household and user from context
     const [loading, setLoading] = useState(true);
     const [statsData, setStatsData] = useState(null);
 
+    // Fetch stats data when the component mounts or the household/user changes
     useEffect(() => {
         fetchStats();
     }, [currentHousehold, currentUser]);
 
+    // Function to fetch statistics data for the current user in the current household
     async function fetchStats() {
-        if (!currentHousehold || !currentUser) return;
+        if (!currentHousehold || !currentUser) return; // Ensure both household and user exist
         try {
             const res = await api.get('/chores/userStats', {
                 params: {
@@ -33,6 +36,7 @@ export default function ChoreStatsScreen({ navigation }) {
         }
     }
 
+    // Display a loading spinner while data is being fetched
     if (loading) {
         return (
             <View style={[choresStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -41,6 +45,7 @@ export default function ChoreStatsScreen({ navigation }) {
         );
     }
 
+    // Display a message if no stats data is available
     if (!statsData) {
         return (
             <View style={[choresStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -49,6 +54,7 @@ export default function ChoreStatsScreen({ navigation }) {
         );
     }
 
+    // Extract data from the stats response, providing defaults where necessary
     const { completedCount = 0, takenOverCount = 0, weeklyCompletionHistory = {}, dailyCompletionHistory = {} } = statsData;
 
     // Convert weeklyCompletionHistory object to array
@@ -59,13 +65,13 @@ export default function ChoreStatsScreen({ navigation }) {
 
     // Convert dailyCompletionHistory object to array (e.g., last 7 days)
     const allDays = Object.keys(dailyCompletionHistory).sort();
-    // For simplicity, let's just take the last 7 days
     const recent7Days = allDays.slice(-7);
     const dailyCompletionArray = recent7Days.map(day => ({
         day,
         count: dailyCompletionHistory[day]
     }));
 
+    // Calculate the number of original (not taken over) chores
     const notTakenOverCount = completedCount - takenOverCount;
 
     // Prepare data for charts
@@ -97,13 +103,11 @@ export default function ChoreStatsScreen({ navigation }) {
 
     const screenWidth = Dimensions.get("window").width;
 
+    // Render the main screen
     return (
         <View style={choresStyles.container}>
-            <View style={choresStyles.statsHeader}>
-                <Text style={choresStyles.statsHeaderTitle}>{currentHousehold?.name} - Your Stats</Text>
-                <View style={{ width: 24 }} />
-            </View>
             <ScrollView contentContainerStyle={{ padding: 20 }}>
+                {/* Line char showing how many chores you completed each week */}
                 <Text style={choresStyles.statsSectionHeader}>Weekly Completion Over Time</Text>
                 {weeklyCompletionHistoryArray.length > 0 ? (
                     <LineChart
@@ -131,7 +135,7 @@ export default function ChoreStatsScreen({ navigation }) {
                 ) : (
                     <Text>No weekly completion history yet.</Text>
                 )}
-
+                {/* Pie chart showing percentage of tasks original assigned to you & tasks you took over */}
                 <Text style={choresStyles.statsSectionHeader}>Taken Over vs Original</Text>
                 <PieChart
                     data={pieData}
@@ -147,6 +151,7 @@ export default function ChoreStatsScreen({ navigation }) {
                     style={{ marginVertical: 8 }}
                 />
 
+                {/* Bar chart showing how many tasks you completed each day for the last 7 days */}
                 <Text style={choresStyles.statsSectionHeader}>Daily Completion (Last 7 Days)</Text>
                 {dailyCompletionArray.length > 0 ? (
                     <BarChart

@@ -7,6 +7,7 @@ import colors from '../styles/MainStyles';
 import RNPickerSelect from 'react-native-picker-select';
 import { Ionicons } from '@expo/vector-icons';
 
+// Helper function to generate the current week identifier in the format "Year-W#"
 function getCurrentWeekIdentifier() {
     const now = new Date();
     const year = now.getUTCFullYear();
@@ -17,6 +18,7 @@ function getCurrentWeekIdentifier() {
 }
 
 export default function AddChoreScreen({ navigation }) {
+    // Get the current household from context
     const { currentHousehold } = useAppContext();
 
     // State to toggle between immediate and scheduled chore forms
@@ -34,6 +36,7 @@ export default function AddChoreScreen({ navigation }) {
     // State for default chores listing
     const [defaultChores, setDefaultChores] = useState([]);
 
+    // Fetch data when the component mounts or the household changes
     useEffect(() => {
         if (currentHousehold) {
             fetchUsers();
@@ -41,37 +44,42 @@ export default function AddChoreScreen({ navigation }) {
         }
     }, [currentHousehold]);
 
+    // Fetch users in the current household
     async function fetchUsers() {
         try {
             const res = await api.get('/users', {
                 params: { householdId: currentHousehold.id }
             });
             const data = res.data;
+            // Update the user list
             setUsersList(data);
             if (data.length > 0) {
+                // Set the default selected user
                 setAssignedUserId(data[0].id);
             }
         } catch (error) {
             console.error('Error fetching users:', error);
         }
     }
-
+    
+    // Fetch the default(scheduled) chores associated with the current household
     async function fetchDefaultChores() {
         try {
             const res = await api.get(`/households/${currentHousehold.id}/defaultChores`);
-            setDefaultChores(res.data);
+            setDefaultChores(res.data);// Update the default chore list
         } catch (error) {
             console.error('Error fetching default chores:', error);
         }
     }
 
+    // Add a new default(scheduled) chore
     async function addDefaultChore() {
         if (!choreName.trim()) return;
         if (!frequencyDays.trim()) return;
         try {
             await api.post(`/households/${currentHousehold.id}/defaultChores`, { 
                 name: choreName,
-                frequencyDays: parseInt(frequencyDays, 10) || 7
+                frequencyDays: parseInt(frequencyDays, 10) || 7 // Default frequency to 7 days
             });
             setChoreName('');
             setFrequencyDays('7');
@@ -81,6 +89,7 @@ export default function AddChoreScreen({ navigation }) {
         }
     }
 
+    // Add a new immediate chore
     async function addImmediateChore() {
         if (!newChore.trim() || !assignedUserId.trim()) return;
         try {
@@ -98,6 +107,7 @@ export default function AddChoreScreen({ navigation }) {
         }
     }
 
+    // Delete a scheduled chore
     async function deleteDefaultChore(choreId) {
         Alert.alert(
             'Delete Chore',
@@ -109,7 +119,7 @@ export default function AddChoreScreen({ navigation }) {
                     onPress: async () => {
                         try {
                             await api.delete(`/households/${currentHousehold.id}/defaultChores/${choreId}`);
-                            fetchDefaultChores();
+                            fetchDefaultChores(); // Refresh the list after deletion
                         } catch (error) {
                             console.error('Error deleting default chore:', error);
                         }
@@ -120,6 +130,7 @@ export default function AddChoreScreen({ navigation }) {
         );
     }
 
+    // Main UI rendering logic
     return (
         <View style={choresStyles.addChoreContainer}>
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -201,7 +212,7 @@ export default function AddChoreScreen({ navigation }) {
                             ) : (
                                 <Text>No users found in this household.</Text>
                             )}
-
+                            {/* Add Button */}
                             <TouchableOpacity style={choresStyles.addButton} onPress={addImmediateChore}>
                                 <Text style={choresStyles.addButtonText}>Add Chore</Text>
                             </TouchableOpacity>
@@ -213,6 +224,7 @@ export default function AddChoreScreen({ navigation }) {
     );
 }
 
+// Styles for the RNPickerSelect component
 const pickerSelectStyles = StyleSheet.create({
     inputIOS: {
         fontSize: 16,
