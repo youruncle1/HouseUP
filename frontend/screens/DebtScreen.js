@@ -11,7 +11,7 @@ import {
     KeyboardAvoidingView,
     ScrollView,
     Platform,
-    Modal,
+    Modal, Image,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -21,7 +21,7 @@ import colors from '../styles/MainStyles';
 
 export default function DebtScreen() {
     const navigation = useNavigation();
-    const { currentHousehold } = useAppContext();
+    const { currentHousehold, currentUser } = useAppContext();
     const [householdMembers, setHouseholdMembers] = useState([]);
     const [debts, setDebts] = useState([]);
     const [transactions, setTransactions] = useState([]);
@@ -101,6 +101,11 @@ export default function DebtScreen() {
     const getUserName = (userId) => {
         const member = householdMembers.find(m => m.id === userId);
         return member ? member.name : userId;
+    };
+
+    const getUserImage = (userId) => {
+        const member = householdMembers.find(m => m.id === userId);
+        return member?.profileImage || 'https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg';
     };
 
     const closeModal = () => {
@@ -189,48 +194,106 @@ export default function DebtScreen() {
     const renderModalContent = () => {
         if (!selectedItem) return null;
         const creditorName = getUserName(selectedItem.creditor);
-        const amountStr = `$${Number(selectedItem.amount).toFixed(2)}`;
+        const amountStr = `Kč ${Number(selectedItem.amount).toFixed(2)}`;
         const participantsNames = selectedItem.participants.map(pid => getUserName(pid)).join(', ');
+
+        // Determine title and icon based on whether it's recurring
+        const title = selectedItemIsRecurring ? 'Recurring Payment Details' : 'Transaction Details';
+        const iconName = selectedItemIsRecurring ? 'repeat-outline' : 'receipt-outline';
 
         return (
             <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>
-                    {selectedItemIsRecurring ? 'Recurring Payment Details' : 'Transaction Details'}
-                </Text>
+                {/* Header with icon and title */}
+                <View style={[styles.modalHeader, { justifyContent: 'center', alignItems: 'center' }]}>
+                    <Ionicons name={iconName} size={28} color={colors.primary} style={{ marginRight: 10 }} />
+                    <Text style={styles.modalTitle}>{title}</Text>
+                </View>
 
-                <Text style={styles.modalLabel}>Creditor: {creditorName}</Text>
-                <Text style={styles.modalLabel}>Amount: {amountStr}</Text>
-                <Text style={styles.modalLabel}>Participants: {participantsNames}</Text>
+                <View style={styles.modalDivider} />
+
+                {/* Info Rows */}
+                <View style={styles.modalInfoRow}>
+                    <Text style={styles.modalInfoLabel}>Creditor:</Text>
+                    <Text style={styles.modalInfoValue}>{creditorName}</Text>
+                </View>
+
+                <View style={styles.modalInfoRow}>
+                    <Text style={styles.modalInfoLabel}>Amount:</Text>
+                    <Text style={styles.modalInfoValue}>{amountStr}</Text>
+                </View>
+
+                <View style={styles.modalInfoRow}>
+                    <Text style={styles.modalInfoLabel}>Participants:</Text>
+                    <Text style={styles.modalInfoValue}>{participantsNames}</Text>
+                </View>
+
                 {selectedItem.description ? (
-                    <Text style={styles.modalLabel}>Description: {selectedItem.description}</Text>
+                    <View style={styles.modalInfoRow}>
+                        <Text style={styles.modalInfoLabel}>Description:</Text>
+                        <Text style={styles.modalInfoValue}>{selectedItem.description}</Text>
+                    </View>
                 ) : null}
 
+                {/* Show recurring-specific fields */}
                 {selectedItemIsRecurring && selectedItem.recurrenceInterval && (
-                    <Text style={styles.modalLabel}>Interval: {selectedItem.recurrenceInterval}</Text>
+                    <View style={styles.modalInfoRow}>
+                        <Text style={styles.modalInfoLabel}>Interval:</Text>
+                        <Text style={styles.modalInfoValue}>{selectedItem.recurrenceInterval}</Text>
+                    </View>
                 )}
                 {selectedItemIsRecurring && selectedItem.nextPaymentDate && (
-                    <Text style={styles.modalLabel}>
-                        Next Payment: {new Date(selectedItem.nextPaymentDate).toLocaleDateString()}
-                    </Text>
+                    <View style={styles.modalInfoRow}>
+                        <Text style={styles.modalInfoLabel}>Next Payment:</Text>
+                        <Text style={styles.modalInfoValue}>
+                            {new Date(selectedItem.nextPaymentDate).toLocaleDateString()}
+                        </Text>
+                    </View>
                 )}
 
+                {/* Show normal transaction-specific fields */}
                 {!selectedItemIsRecurring && selectedItem.timestamp && (
-                    <Text style={styles.modalLabel}>
-                        Date: {new Date(selectedItem.timestamp).toLocaleDateString()}
-                    </Text>
+                    <View style={styles.modalInfoRow}>
+                        <Text style={styles.modalInfoLabel}>Date:</Text>
+                        <Text style={styles.modalInfoValue}>
+                            {new Date(selectedItem.timestamp).toLocaleDateString()}
+                        </Text>
+                    </View>
                 )}
 
+                <View style={[styles.modalDivider, { marginTop: 20 }]} />
+
+                {/* Buttons */}
                 <View style={styles.modalButtonsContainer}>
-                    {/* Show Edit only if not settlement and not recurring (for recurring, always edit) */}
                     {(!selectedItem.isSettlement || selectedItemIsRecurring) && (
-                        <TouchableOpacity style={styles.modalButton} onPress={handleEdit}>
-                            <Text style={[styles.modalButtonText, !canEdit && { color: 'grey' }]}>Edit</Text>
+                        <TouchableOpacity
+                            style={styles.modalButton}
+                            onPress={() => {
+                                if (!canEdit) {
+                                    Alert.alert('Cannot Edit', cannotEditReason || 'This transaction cannot be edited.');
+                                    return;
+                                }
+                                handleEdit();
+                            }}
+                        >
+                            <Ionicons
+                                name="create-outline"
+                                size={20}
+                                color={canEdit ? colors.primary : 'grey'}
+                                style={{ marginRight: 5 }}
+                            />
+                            <Text style={[styles.modalButtonText, !canEdit && { color: 'grey' }]}>
+                                Edit
+                            </Text>
                         </TouchableOpacity>
                     )}
+
                     <TouchableOpacity style={styles.modalButton} onPress={handleDelete}>
+                        <Ionicons name="trash-outline" size={20} color="red" style={{ marginRight: 5 }} />
                         <Text style={[styles.modalButtonText, { color: 'red' }]}>Delete</Text>
                     </TouchableOpacity>
+
                     <TouchableOpacity style={styles.modalButton} onPress={closeModal}>
+                        <Ionicons name="close-circle-outline" size={20} color={colors.primary} style={{ marginRight: 5 }} />
                         <Text style={styles.modalButtonText}>Close</Text>
                     </TouchableOpacity>
                 </View>
@@ -267,27 +330,44 @@ export default function DebtScreen() {
 
     // For normal transactions in DebtScreen (Recent Transactions)
     const renderTransactionItem = ({ item }) => {
-        const date = new Date(item.timestamp).toLocaleDateString();
-        const isSettlement = item.isSettlement === true;
+        const dateObj = new Date(item.timestamp);
+        const dateStr = dateObj.toLocaleDateString();
+        const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        const creditorName = getUserName(item.creditor);
+        const description = item.description || "No description";
 
         return (
             <TouchableOpacity onPress={() => onTransactionPress(item)}>
-                <View style={styles.debtItem}>
-                    <View style={styles.debtInfo}>
-                        {isSettlement ? (
-                            <Text style={styles.debtText}>
-                                Settlement: {getUserName(item.creditor)} settled ${Number(item.amount).toFixed(2)}
+                <View style={styles.transactionItemRow}>
+                    {/* Left side: Profile pic + text info */}
+                    <View style={styles.transactionLeft}>
+                        <Image
+                            source={{ uri: getUserImage(item.creditor) }}
+                            style={styles.userImage}
+                        />
+                        <View style={styles.transactionTextContainer}>
+                            <Text style={styles.transactionDescription}>{description}</Text>
+                            <Text style={styles.transactionDate}>{dateStr} {timeStr}</Text>
+                            <Text style={styles.transactionCreditorLine}>
+                                <Text style={{ fontStyle: 'italic' }}>{creditorName}</Text> paid for
                             </Text>
-                        ) : (
-                            <Text style={styles.debtText}>
-                                {getUserName(item.creditor)} paid ${Number(item.amount).toFixed(2)}
-                            </Text>
-                        )}
+                        </View>
                     </View>
-                    {item.description ? (
-                        <Text style={styles.debtDescription}>{item.description}</Text>
-                    ) : null}
-                    <Text style={styles.settledText}>On {date}</Text>
+
+                    {/* Right side: Amount + participants images */}
+                    <View style={styles.transactionRight}>
+                        <Text style={styles.transactionAmount}>Kč {Number(item.amount).toFixed(2)}</Text>
+                        <View style={styles.transactionParticipants}>
+                            {item.participants.map((pid) => (
+                                <Image
+                                    key={pid}
+                                    source={{ uri: getUserImage(pid) }}
+                                    style={styles.transactionParticipantImage}
+                                />
+                            ))}
+                        </View>
+                    </View>
                 </View>
             </TouchableOpacity>
         );
@@ -304,57 +384,90 @@ export default function DebtScreen() {
                 </TouchableOpacity>
                 <View style={styles.headerContent}>
                     <Text style={styles.householdName}>{currentHousehold?.name || 'No Household Selected'}</Text>
-                    <Text style={styles.itemCounter}>Debts Overview</Text>
+                    <Text style={styles.itemCounter}>{debts.length} active debts</Text>
                 </View>
+                <Image
+                    source={{
+                        uri: currentUser?.profileImage,
+                    }}
+                    style={styles.profileImage}
+                />
             </View>
 
-            <ScrollView style={styles.scrollContainer}>
+            <ScrollView
+                style={styles.scrollContainer}
+                contentContainerStyle={{ paddingBottom: 100 }}
+            >
                 {/* Debts Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Debts</Text>
-                    {debts.length === 0 ? (
-                        <Text style={styles.noDataText}>No outstanding debts.</Text>
-                    ) : (
-                        <FlatList
-                            data={debts}
-                            keyExtractor={(item) => `${item.debtor}->${item.creditor}`}
-                            renderItem={({ item }) => (
-                                <TouchableOpacity onPress={() => settleDebt(item)}>
-                                    <View style={styles.debtItem}>
-                                        <View style={styles.debtInfo}>
-                                            <Text style={styles.debtText}>
-                                                {getUserName(item.debtor)} owes {getUserName(item.creditor)}
-                                            </Text>
-                                            <Text style={styles.amountText}>${item.amount.toFixed(2)}</Text>
+                    {
+                        debts.length === 0 ? (
+                            <Text style={styles.noDataText}>No outstanding debts.</Text>
+                        ) : (
+                            <FlatList
+                                data={debts}
+                                keyExtractor={(item) => `${item.debtor}->${item.creditor}`}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity onPress={() => settleDebt(item)}>
+                                        <View style={styles.debtItemRow}>
+                                            {/* Left side: Debtor info */}
+                                            <View style={styles.debtorContainer}>
+                                                <Image
+                                                    source={{ uri: getUserImage(item.debtor) }}
+                                                    style={styles.userImage}
+                                                />
+                                                <View style={styles.debtorTextContainer}>
+                                                    <Text style={styles.debtorName}>{getUserName(item.debtor)}</Text>
+                                                    <Text style={styles.debtorAmount}>Kč {item.amount.toFixed(2)}</Text>
+                                                </View>
+                                            </View>
+
+                                            {/* Arrow in the middle */}
+                                            <Ionicons name="arrow-forward-outline" size={20} color="#333" style={{marginHorizontal:20}}/>
+
+                                            {/* Right side: Creditor info */}
+                                            <View style={styles.creditorContainer}>
+                                                <Text style={styles.creditorName}>{getUserName(item.creditor)}</Text>
+                                                <Image
+                                                    source={{ uri: getUserImage(item.creditor) }}
+                                                    style={styles.userImage}
+                                                />
+                                            </View>
                                         </View>
-                                    </View>
-                                </TouchableOpacity>
-                            )}
-                            scrollEnabled={false}
-                            contentContainerStyle={{ paddingBottom: 10 }}
-                        />
-                    )}
+                                    </TouchableOpacity>
+                                )}
+                                scrollEnabled={false}
+                            />
+                        )
+                    }
                 </View>
 
                 {/* Upcoming Recurring Payments Section */}
                 {recurringTransactions.length > 0 && (
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Upcoming Recurring Payments</Text>
+                        <Text style={styles.sectionTitle}>Upcoming Scheduled Payment</Text>
                         <TouchableOpacity onPress={() => onRecurringPress(recurringTransactions[0])}>
-                            <View style={styles.debtItem}>
-                                <View style={styles.debtInfo}>
-                                    <Text style={styles.debtText}>
-                                        {getUserName(recurringTransactions[0].creditor)} scheduled a {Number(recurringTransactions[0].amount).toFixed(2)} payment
+                            <View style={styles.recurringItemRow}>
+                                {/* Left Side: Date above, Description below */}
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.recurrenceDate}>
+                                        {new Date(recurringTransactions[0].nextPaymentDate).toLocaleDateString()}
+                                    </Text>
+                                    <Text style={styles.recurrenceDescription}>
+                                        "{recurringTransactions[0].description || 'Not described'}"
                                     </Text>
                                 </View>
-                                {recurringTransactions[0].description ? (
-                                    <Text style={styles.debtDescription}>{recurringTransactions[0].description}</Text>
-                                ) : null}
-                                <Text style={styles.settledText}>
-                                    Next Payment: {new Date(recurringTransactions[0].nextPaymentDate).toLocaleDateString()}
-                                </Text>
+
+                                {/* Right Side: Amount, centered vertically */}
+                                <View style={{ justifyContent: 'center', alignItems: 'flex-end' }}>
+                                    <Text style={styles.recurrenceAmount}>
+                                        Kč {Number(recurringTransactions[0].amount).toFixed(2)}
+                                    </Text>
+                                </View>
                             </View>
                         </TouchableOpacity>
+
                         {recurringTransactions.length > 1 && (
                             <TouchableOpacity
                                 onPress={() => navigation.navigate('DebtScheduled')}
@@ -374,7 +487,7 @@ export default function DebtScreen() {
                     ) : (
                         <>
                             <FlatList
-                                data={transactions.slice(0, 2)}
+                                data={transactions.slice(0, 3)}
                                 keyExtractor={(item) => item.id}
                                 renderItem={renderTransactionItem}
                                 scrollEnabled={false}
@@ -407,11 +520,19 @@ export default function DebtScreen() {
                 animationType="fade"
                 onRequestClose={closeModal}
             >
-                <View style={styles.modalBackground}>
-                    <View style={styles.modalContainer}>
+                <TouchableOpacity
+                    style={styles.modalBackground}
+                    activeOpacity={1}
+                    onPress={closeModal}
+                >
+                    <TouchableOpacity
+                        style={styles.modalContainer}
+                        activeOpacity={1}
+                        onPress={() => {}} // Stop propagation inside modal
+                    >
                         {renderModalContent()}
-                    </View>
-                </View>
+                    </TouchableOpacity>
+                </TouchableOpacity>
             </Modal>
         </KeyboardAvoidingView>
     );
@@ -423,39 +544,53 @@ const styles = StyleSheet.create({
         backgroundColor: '#f7f7f7',
     },
     header: {
-        paddingTop: 20,
-        paddingBottom: 10,
         backgroundColor: colors.primary,
-        alignItems: 'center',
+        padding: 15,
         flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
     },
     menuButton: {
-        marginLeft: 10,
-        marginRight: 10,
+        padding: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     headerContent: {
-        flex: 1,
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        alignItems: 'center',
     },
     householdName: {
-        fontSize: 20,
+        fontSize: 24,
         fontWeight: 'bold',
-        color: '#fff',
+        color: 'white',
+    },
+    profileImage: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        borderWidth: 2,
+        borderColor: 'white',
+        marginHorizontal: 10,
     },
     itemCounter: {
-        color: '#fff',
+        fontSize: 16,
+        color: 'white',
+        marginTop: 5,
     },
     scrollContainer: {
         flex: 1,
     },
     section: {
         marginTop: 20,
-        paddingHorizontal: 15,
+        paddingHorizontal: 10,
     },
     sectionTitle: {
-        fontSize: 22,
+        fontSize: 18,
         fontWeight: 'bold',
         color: colors.primary,
-        marginBottom: 10,
+        marginBottom: 0,
     },
     noDataText: {
         fontSize: 16,
@@ -465,7 +600,7 @@ const styles = StyleSheet.create({
     },
     showMoreButton: {
         alignItems: 'center',
-        paddingVertical: 10,
+        paddingVertical: 5,
     },
     showMoreText: {
         color: colors.primary,
@@ -486,7 +621,7 @@ const styles = StyleSheet.create({
     debtItem: {
         backgroundColor: '#e0e0e0',
         padding: 15,
-        marginHorizontal: 15,
+        marginHorizontal: 5,
         marginTop: 10,
         borderRadius: 8,
         elevation: 1,
@@ -500,22 +635,151 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#333',
     },
+    debtItemRow: {
+        backgroundColor: '#e0e0e0',
+        padding: 10,
+        marginHorizontal: 5,
+        marginTop: 5,
+        borderRadius: 8,
+        elevation: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    userImage: {
+        width: 42,
+        height: 42,
+        borderRadius: 20,
+        borderWidth: 2,
+        borderColor: 'white',
+    },
+    debtorContainer: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    debtorTextContainer: {
+        marginLeft: 10,
+    },
+    debtorName: {
+        fontSize: 16,
+        //fontWeight: 'bold',
+        color: colors.text,
+    },
+    debtorAmount: {
+        fontSize: 16,
+        color: colors.primary,
+        fontWeight: 'bold',
+        marginTop: 2,
+    },
+    creditorContainer: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+    },
+    creditorName: {
+        fontSize: 16,
+        color: colors.text,
+        marginRight: 8,
+    },
     amountText: {
         fontSize: 18,
         fontWeight: 'bold',
         color: colors.primary,
     },
     debtDescription: {
-        fontSize: 14,
+        fontSize: 18,
         color: '#666',
         marginTop: 5,
     },
     settledText: {
         marginTop: 10,
-        fontSize: 16,
+        fontSize: 14,
         color: '#4caf50',
-        fontWeight: 'bold',
+        fontWeight: 'light',
         textAlign: 'center',
+    },
+    recurringItemRow: {
+        backgroundColor: '#e0e0e0',
+        padding: 10,
+        marginHorizontal: 5,
+        marginTop: 10,
+        borderRadius: 8,
+        elevation: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    recurrenceDate: {
+        fontSize: 24,
+        color: colors.text,
+        fontWeight: 'bold'
+    },
+    recurrenceDescription: {
+        fontSize: 16,
+        color: colors.text,
+        marginTop: 3
+    },
+    recurrenceAmount: {
+        color: colors.primary,
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    transactionItemRow: {
+        flexDirection: 'row',
+        backgroundColor: '#e0e0e0',
+        padding: 10,
+        marginHorizontal: 5,
+        marginTop: 5,
+        borderRadius: 8,
+        elevation: 1,
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    transactionLeft: {
+        flexDirection: 'row',
+        flex: 1,
+        alignItems: 'center',
+    },
+    transactionTextContainer: {
+        flexDirection: 'column',
+        flex: 1,
+        marginLeft: 10,
+    },
+    transactionDescription: {
+        fontSize: 16,
+        color: colors.text,
+        fontWeight: 'bold',
+        marginBottom: 4,
+    },
+    transactionDate: {
+        fontSize: 14,
+        color: colors.text,
+        marginBottom: 4,
+    },
+    transactionCreditorLine: {
+        fontSize: 14,
+        color: colors.text,
+    },
+    transactionRight: {
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+    },
+    transactionAmount: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: colors.primary,
+        marginBottom: 5,
+    },
+    transactionParticipants: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+    transactionParticipantImage: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        marginRight: 2,
     },
     modalBackground: {
         flex: 1,
@@ -530,10 +794,10 @@ const styles = StyleSheet.create({
         width: '80%',
     },
     modalContent: {
-        // additional styling if needed
+       //
     },
     modalTitle: {
-        fontSize: 20,
+        fontSize: 24,
         fontWeight: 'bold',
         marginBottom: 10,
         color: colors.primary,
@@ -550,11 +814,40 @@ const styles = StyleSheet.create({
         marginTop: 20,
     },
     modalButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
         padding: 10,
     },
     modalButtonText: {
         fontSize: 16,
         fontWeight: 'bold',
         color: colors.primary,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        ///alignItems: 'center',
+        //marginBottom: 10,
+    },
+    modalDivider: {
+        height: 1,
+        backgroundColor: '#ccc',
+        marginVertical: 10,
+    },
+    modalInfoRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginVertical: 5,
+    },
+    modalInfoLabel: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333',
+        flex: 1,
+    },
+    modalInfoValue: {
+        fontSize: 16,
+        color: '#333',
+        flex: 1,
+        textAlign: 'right',
     },
 });

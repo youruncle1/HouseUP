@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
-    FlatList,
     TouchableOpacity,
     Alert,
     StyleSheet,
     ActivityIndicator,
-    Modal
+    Modal,
+    Image,
+    SectionList
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAppContext } from '../AppContext';
@@ -24,7 +25,7 @@ export default function TransactionsScreen({ navigation }) {
     // Modal states
     const [showModal, setShowModal] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
-    const [selectedItemIsRecurring, setSelectedItemIsRecurring] = useState(false); // always false here, but for consistency
+    const [selectedItemIsRecurring, setSelectedItemIsRecurring] = useState(false);
     const [canEdit, setCanEdit] = useState(true);
     const [cannotEditReason, setCannotEditReason] = useState('');
 
@@ -45,6 +46,7 @@ export default function TransactionsScreen({ navigation }) {
 
             const transRes = await api.get(`/transactions?householdId=${currentHousehold.id}`);
             let allTransactions = transRes.data;
+            // Sort by date descending
             allTransactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
             // Filter out recurring transactions
@@ -63,22 +65,25 @@ export default function TransactionsScreen({ navigation }) {
         return member ? member.name : userId;
     };
 
+    const getUserImage = (userId) => {
+        const member = householdMembers.find(m => m.id === userId);
+        return member?.profileImage || 'https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg';
+    };
+
     const closeModal = () => {
         setShowModal(false);
         setSelectedItem(null);
         setSelectedItemIsRecurring(false);
-        setCanEdit(true); // reset canEdit to true by default
+        setCanEdit(true);
         setCannotEditReason('');
     };
 
     const handleEdit = () => {
         if (!canEdit) {
-            // Show reason why can't edit
             Alert.alert('Cannot Edit', cannotEditReason || 'This transaction cannot be edited.');
             return;
         }
 
-        // If canEdit is true
         navigation.navigate('DebtForm', { mode: 'edit', transaction: selectedItem });
         closeModal();
     };
@@ -96,7 +101,7 @@ export default function TransactionsScreen({ navigation }) {
                         try {
                             await api.delete(`/transactions/${selectedItem.id}`);
                             closeModal();
-                            fetchData(); // refresh data
+                            fetchData();
                         } catch (error) {
                             console.error('Error deleting transaction:', error);
                         }
@@ -119,7 +124,6 @@ export default function TransactionsScreen({ navigation }) {
             }
         } catch (error) {
             console.error('Error checking can-edit:', error);
-            // If error occurs, default to not editable with generic message
             setCanEdit(false);
             setCannotEditReason('Unable to determine if editable.');
         }
@@ -128,36 +132,87 @@ export default function TransactionsScreen({ navigation }) {
     const renderModalContent = () => {
         if (!selectedItem) return null;
         const creditorName = getUserName(selectedItem.creditor);
-        const amountStr = `$${Number(selectedItem.amount).toFixed(2)}`;
+        const amountStr = `Kč ${Number(selectedItem.amount).toFixed(2)}`;
         const participantsNames = selectedItem.participants.map(pid => getUserName(pid)).join(', ');
+
+        const title = 'Transaction Details';
 
         return (
             <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Transaction Details</Text>
+                {/* Header with icon and title, centered */}
+                <View style={[styles.modalHeader, { justifyContent: 'center', alignItems: 'center' }]}>
+                    <Ionicons name="receipt-outline" size={28} color={colors.primary} style={{ marginRight: 10 }} />
+                    <Text style={styles.modalTitle}>{title}</Text>
+                </View>
 
-                <Text style={styles.modalLabel}>Creditor: {creditorName}</Text>
-                <Text style={styles.modalLabel}>Amount: {amountStr}</Text>
-                <Text style={styles.modalLabel}>Participants: {participantsNames}</Text>
+                <View style={styles.modalDivider} />
+
+                {/* Info Rows */}
+                <View style={styles.modalInfoRow}>
+                    <Text style={styles.modalInfoLabel}>Creditor:</Text>
+                    <Text style={styles.modalInfoValue}>{creditorName}</Text>
+                </View>
+
+                <View style={styles.modalInfoRow}>
+                    <Text style={styles.modalInfoLabel}>Amount:</Text>
+                    <Text style={styles.modalInfoValue}>{amountStr}</Text>
+                </View>
+
+                <View style={styles.modalInfoRow}>
+                    <Text style={styles.modalInfoLabel}>Participants:</Text>
+                    <Text style={styles.modalInfoValue}>{participantsNames}</Text>
+                </View>
+
                 {selectedItem.description ? (
-                    <Text style={styles.modalLabel}>Description: {selectedItem.description}</Text>
+                    <View style={styles.modalInfoRow}>
+                        <Text style={styles.modalInfoLabel}>Description:</Text>
+                        <Text style={styles.modalInfoValue}>{selectedItem.description}</Text>
+                    </View>
                 ) : null}
 
                 {selectedItem.timestamp && (
-                    <Text style={styles.modalLabel}>
-                        Date: {new Date(selectedItem.timestamp).toLocaleDateString()}
-                    </Text>
+                    <View style={styles.modalInfoRow}>
+                        <Text style={styles.modalInfoLabel}>Date:</Text>
+                        <Text style={styles.modalInfoValue}>
+                            {new Date(selectedItem.timestamp).toLocaleDateString()}
+                        </Text>
+                    </View>
                 )}
 
+                <View style={[styles.modalDivider, { marginTop: 20 }]} />
+
+                {/* Buttons with icons */}
                 <View style={styles.modalButtonsContainer}>
-                    {!selectedItem.isSettlement && (
-                        <TouchableOpacity style={styles.modalButton} onPress={handleEdit}>
-                            <Text style={[styles.modalButtonText, !canEdit && { color: 'grey' }]}>Edit</Text>
+                    {(!selectedItem.isSettlement || selectedItemIsRecurring) && (
+                        <TouchableOpacity
+                            style={styles.modalButton}
+                            onPress={() => {
+                                if (!canEdit) {
+                                    Alert.alert('Cannot Edit', cannotEditReason || 'This transaction cannot be edited.');
+                                    return;
+                                }
+                                handleEdit();
+                            }}
+                        >
+                            <Ionicons
+                                name="create-outline"
+                                size={20}
+                                color={canEdit ? colors.primary : 'grey'}
+                                style={{ marginRight: 5 }}
+                            />
+                            <Text style={[styles.modalButtonText, !canEdit && { color: 'grey' }]}>
+                                Edit
+                            </Text>
                         </TouchableOpacity>
                     )}
+
                     <TouchableOpacity style={styles.modalButton} onPress={handleDelete}>
+                        <Ionicons name="trash-outline" size={20} color="red" style={{ marginRight: 5 }} />
                         <Text style={[styles.modalButtonText, { color: 'red' }]}>Delete</Text>
                     </TouchableOpacity>
+
                     <TouchableOpacity style={styles.modalButton} onPress={closeModal}>
+                        <Ionicons name="close-circle-outline" size={20} color={colors.primary} style={{ marginRight: 5 }} />
                         <Text style={styles.modalButtonText}>Close</Text>
                     </TouchableOpacity>
                 </View>
@@ -169,13 +224,9 @@ export default function TransactionsScreen({ navigation }) {
         setSelectedItem(item);
         setSelectedItemIsRecurring(false);
 
-        // If it's settlement or normal transaction
-        // if settlement -> no need can-edit check because no edit anyway
-        // if normal non-settlement, do can-edit check:
         if (!item.isSettlement) {
             await fetchCanEdit(item.id);
         } else {
-            // Settlement transaction can't be edited, no can-edit check needed
             setCanEdit(false);
             setCannotEditReason('This is a settlement transaction and cannot be edited.');
         }
@@ -183,32 +234,88 @@ export default function TransactionsScreen({ navigation }) {
         setShowModal(true);
     };
 
+    // numeric to string conversion
+    const monthNames = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+
+    // group by year-month
+    const sections = [];
+    const groups = {};
+    for (let t of transactions) {
+        const d = new Date(t.timestamp);
+        const year = d.getFullYear();
+        const month = d.getMonth(); // 0-based
+        const yearMonth = `${year}-${month}`;
+        if (!groups[yearMonth]) {
+            groups[yearMonth] = [];
+        }
+        groups[yearMonth].push(t);
+    }
+
+    // sort by year month (descending)
+    const sortedYearMonths = Object.keys(groups).sort((a,b) => {
+        const [yearA, monthA] = a.split('-').map(Number);
+        const [yearB, monthB] = b.split('-').map(Number);
+        if (yearB !== yearA) return yearB - yearA; //years first
+        return monthB - monthA; //months second
+    });
+
+    //section array month-year
+    for (let ym of sortedYearMonths) {
+        const [y, m] = ym.split('-').map(Number);
+        const title = `${monthNames[m]} ${y}`;
+        sections.push({ title, data: groups[ym] });
+    }
+
     const renderTransactionItem = ({ item }) => {
-        const date = new Date(item.timestamp).toLocaleDateString();
-        const isSettlement = item.isSettlement === true;
+        const dateObj = new Date(item.timestamp);
+        const dateStr = dateObj.toLocaleDateString();
+        const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        const creditorName = getUserName(item.creditor);
+        const description = item.description || "No description";
 
         return (
             <TouchableOpacity onPress={() => onTransactionPress(item)}>
-                <View style={styles.debtItem}>
-                    <View style={styles.debtInfo}>
-                        {isSettlement ? (
-                            <Text style={styles.debtText}>
-                                Settlement: {getUserName(item.creditor)} settled ${Number(item.amount).toFixed(2)}
+                <View style={styles.transactionItemRow}>
+                    {/* Left side: Profile pic + text info */}
+                    <View style={styles.transactionLeft}>
+                        <Image
+                            source={{ uri: getUserImage(item.creditor) }}
+                            style={styles.transactionUserImage}
+                        />
+                        <View style={styles.transactionTextContainer}>
+                            <Text style={styles.transactionDescription}>{description}</Text>
+                            <Text style={styles.transactionDate}>{dateStr} {timeStr}</Text>
+                            <Text style={styles.transactionCreditorLine}>
+                                <Text style={{ fontStyle: 'italic' }}>{creditorName}</Text> paid for
                             </Text>
-                        ) : (
-                            <Text style={styles.debtText}>
-                                {getUserName(item.creditor)} paid ${Number(item.amount).toFixed(2)}
-                            </Text>
-                        )}
+                        </View>
                     </View>
-                    {item.description ? (
-                        <Text style={styles.debtDescription}>{item.description}</Text>
-                    ) : null}
-                    <Text style={styles.settledText}>On {date}</Text>
+
+                    {/* Right side: Amount + participants images */}
+                    <View style={styles.transactionRight}>
+                        <Text style={styles.transactionAmount}>Kč {Number(item.amount).toFixed(2)}</Text>
+                        <View style={styles.transactionParticipants}>
+                            {item.participants.map((pid) => (
+                                <Image
+                                    key={pid}
+                                    source={{ uri: getUserImage(pid) }}
+                                    style={styles.transactionParticipantImage}
+                                />
+                            ))}
+                        </View>
+                    </View>
                 </View>
             </TouchableOpacity>
         );
     };
+
+    const renderSectionHeader = ({ section: { title } }) => (
+        <Text style={styles.monthHeader}>{title}</Text>
+    );
 
     return (
         <View style={styles.container}>
@@ -217,14 +324,15 @@ export default function TransactionsScreen({ navigation }) {
             </View>
             {loading ? (
                 <ActivityIndicator style={{ marginTop: 20 }} size="large" color={colors.primary} />
-            ) : transactions.length === 0 ? (
+            ) : sections.length === 0 ? (
                 <Text style={styles.noDataText}>No transactions found.</Text>
             ) : (
-                <FlatList
-                    data={transactions}
+                <SectionList
+                    sections={sections}
                     keyExtractor={(item) => item.id}
                     renderItem={renderTransactionItem}
-                    contentContainerStyle={{ paddingBottom: 10 }}
+                    renderSectionHeader={renderSectionHeader}
+                    contentContainerStyle={{ paddingBottom: 80 }}
                 />
             )}
 
@@ -234,11 +342,19 @@ export default function TransactionsScreen({ navigation }) {
                 animationType="fade"
                 onRequestClose={closeModal}
             >
-                <View style={styles.modalBackground}>
-                    <View style={styles.modalContainer}>
+                <TouchableOpacity
+                    style={styles.modalBackground}
+                    activeOpacity={1}
+                    onPress={closeModal}
+                >
+                    <TouchableOpacity
+                        style={styles.modalContainer}
+                        activeOpacity={1}
+                        onPress={() => {}} // prevent closing when tapping inside the modal
+                    >
                         {renderModalContent()}
-                    </View>
-                </View>
+                    </TouchableOpacity>
+                </TouchableOpacity>
             </Modal>
         </View>
     );
@@ -260,41 +376,86 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#fff',
     },
-    debtItem: {
-        backgroundColor: '#e0e0e0',
-        padding: 15,
-        marginHorizontal: 15,
-        marginTop: 10,
-        borderRadius: 8,
-        elevation: 1,
-    },
-    debtInfo: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    debtText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#333',
-        flexShrink: 1,
-    },
-    debtDescription: {
-        fontSize: 14,
-        color: '#666',
-        marginTop: 5,
-    },
-    settledText: {
-        marginTop: 10,
-        fontSize: 16,
-        color: '#4caf50',
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
     noDataText: {
         fontSize: 16,
         color: '#666',
         textAlign: 'center',
         marginTop: 20,
+    },
+    monthHeader: {
+        backgroundColor: 'rgba(240,240,240,0.9)',
+        paddingVertical: 5,
+        paddingHorizontal: 15,
+        fontSize: 18,
+        fontWeight: 'bold',
+        borderBottomWidth: 1,
+        borderTopWidth: 1,
+        borderColor: colors.primary,
+        color: colors.primary,
+    },
+    transactionItemRow: {
+        flexDirection: 'row',
+        backgroundColor: '#e0e0e0',
+        padding: 10,
+        marginHorizontal: 15,
+        marginTop: 10,
+        borderRadius: 8,
+        elevation: 1,
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    transactionLeft: {
+        flexDirection: 'row',
+        flex: 1,
+        alignItems: 'center',
+    },
+    transactionUserImage: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        borderWidth: 2,
+        borderColor: 'white',
+    },
+    transactionTextContainer: {
+        flexDirection: 'column',
+        flex: 1,
+        marginLeft: 10,
+    },
+    transactionDescription: {
+        fontSize: 16,
+        color: colors.text,
+        fontWeight: 'bold',
+        marginBottom: 4,
+    },
+    transactionDate: {
+        fontSize: 14,
+        color: colors.text,
+        marginBottom: 4,
+    },
+    transactionCreditorLine: {
+        fontSize: 14,
+        color: colors.text,
+    },
+    transactionRight: {
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+        marginLeft: 10,
+    },
+    transactionAmount: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: colors.primary,
+        marginBottom: 5,
+    },
+    transactionParticipants: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+    transactionParticipantImage: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        marginRight: 2,
     },
     modalBackground: {
         flex: 1,
@@ -308,7 +469,9 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         width: '80%',
     },
-    modalContent: {},
+    modalContent: {
+        // additional styling if needed
+    },
     modalTitle: {
         fontSize: 20,
         fontWeight: 'bold',
@@ -321,12 +484,40 @@ const styles = StyleSheet.create({
         marginVertical: 5,
         color: '#333',
     },
+    modalHeader: {
+        flexDirection: 'row',
+        marginBottom: 10,
+    },
+    modalDivider: {
+        height: 1,
+        backgroundColor: '#ccc',
+        marginVertical: 10,
+    },
+    modalInfoRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginVertical: 5,
+    },
+    modalInfoLabel: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333',
+        flex: 1,
+    },
+    modalInfoValue: {
+        fontSize: 16,
+        color: '#333',
+        flex: 1,
+        textAlign: 'right',
+    },
     modalButtonsContainer: {
         flexDirection: 'row',
         justifyContent: 'space-evenly',
         marginTop: 20,
     },
     modalButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
         padding: 10,
     },
     modalButtonText: {
