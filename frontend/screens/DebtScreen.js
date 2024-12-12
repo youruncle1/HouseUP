@@ -571,6 +571,7 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderColor: 'white',
         marginHorizontal: 10,
+        backgroundColor: "#7292e4",
     },
     itemCounter: {
         fontSize: 16,
