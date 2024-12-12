@@ -16,7 +16,7 @@ import ShoppingListScreen_AddItem from './screens/ShoppingListScreen_AddItem';
 import ShoppingListScreen_Settings from './screens/ShoppingListScreen_Settings';
 import DebtScreen from './screens/DebtScreen';
 import DebtFormScreen from './screens/DebtFormScreen';
-import RecurringDebtsScreen from './screens/RecurringDebtsScreen';
+import DebtScheduledScreen from './screens/DebtScheduledScreen';
 import TransactionsScreen from './screens/TransactionsScreen';
 
 import styles from './styles/DrawerStyles';
@@ -54,8 +54,8 @@ function DebtStack() {
         <Stack.Navigator id={DebtStack}>
             <Stack.Screen name="DebtHome" component={DebtScreen} options={{ title: 'Debt' }} />
             <Stack.Screen name="DebtForm" component={DebtFormScreen} options={{ title: 'Debt Form' }} />
-            <Stack.Screen name="RecurringDebts" component={RecurringDebtsScreen} />
-            <Stack.Screen name="Transactions" component={TransactionsScreen} />
+            <Stack.Screen name="DebtScheduled" component={DebtScheduledScreen} options={{ title: 'Scheduled Debts' }} />
+            <Stack.Screen name="Transactions" component={TransactionsScreen} options={{ title: 'Transactions' }}/>
             {/* Additional screens for Debt can go here */}
         </Stack.Navigator>
     );

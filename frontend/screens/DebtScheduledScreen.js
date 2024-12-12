@@ -1,3 +1,5 @@
+// frontend/screens/DebtScheduledScreen.js
+
 import React, { useState, useEffect } from 'react';
 import {
     View,
@@ -15,18 +17,16 @@ import { useFocusEffect } from '@react-navigation/native';
 import api from '../services/api';
 import colors from '../styles/MainStyles';
 
-export default function TransactionsScreen({ navigation }) {
+export default function DebtScheduledScreen({ navigation }) {
     const { currentHousehold } = useAppContext();
-    const [transactions, setTransactions] = useState([]);
+    const [recurringTransactions, setRecurringTransactions] = useState([]);
     const [householdMembers, setHouseholdMembers] = useState([]);
     const [loading, setLoading] = useState(false);
 
     // Modal states
     const [showModal, setShowModal] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
-    const [selectedItemIsRecurring, setSelectedItemIsRecurring] = useState(false); // always false here, but for consistency
-    const [canEdit, setCanEdit] = useState(true);
-    const [cannotEditReason, setCannotEditReason] = useState('');
+    const [selectedItemIsRecurring, setSelectedItemIsRecurring] = useState(false); // Always true here, but we keep for consistency.
 
     useFocusEffect(
         React.useCallback(() => {
@@ -39,20 +39,29 @@ export default function TransactionsScreen({ navigation }) {
     const fetchData = async () => {
         try {
             setLoading(true);
+            // Fetch users for name mapping
             const usersRes = await api.get(`/users?householdId=${currentHousehold.id}`);
             const members = usersRes.data;
             setHouseholdMembers(members);
 
-            const transRes = await api.get(`/transactions?householdId=${currentHousehold.id}`);
-            let allTransactions = transRes.data;
-            allTransactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            // Fetch all recurring transactions
+            const recurringRes = await api.get(`/transactions/recurring?householdId=${currentHousehold.id}`);
+            const allRecurring = recurringRes.data;
+            // Filter only those that have a nextPaymentDate
+            const filteredRecurring = allRecurring
+                .filter(rt => rt.nextPaymentDate && new Date(rt.nextPaymentDate).getTime())
+                .map(rt => {
+                    return {
+                        ...rt,
+                        nextPaymentDateObj: new Date(rt.nextPaymentDate)
+                    };
+                });
 
-            // Filter out recurring transactions
-            const normalTransactions = allTransactions.filter(t => !t.isRecurring);
-
-            setTransactions(normalTransactions);
+            // Sort by nextPaymentDate ascending
+            filteredRecurring.sort((a, b) => a.nextPaymentDateObj - b.nextPaymentDateObj);
+            setRecurringTransactions(filteredRecurring);
         } catch (error) {
-            console.error('Error fetching transactions:', error);
+            console.error('Error fetching recurring transactions:', error);
         } finally {
             setLoading(false);
         }
@@ -67,18 +76,10 @@ export default function TransactionsScreen({ navigation }) {
         setShowModal(false);
         setSelectedItem(null);
         setSelectedItemIsRecurring(false);
-        setCanEdit(true); // reset canEdit to true by default
-        setCannotEditReason('');
     };
 
     const handleEdit = () => {
-        if (!canEdit) {
-            // Show reason why can't edit
-            Alert.alert('Cannot Edit', cannotEditReason || 'This transaction cannot be edited.');
-            return;
-        }
-
-        // If canEdit is true
+        // Recurring placeholders are always editable
         navigation.navigate('DebtForm', { mode: 'edit', transaction: selectedItem });
         closeModal();
     };
@@ -86,7 +87,7 @@ export default function TransactionsScreen({ navigation }) {
     const handleDelete = async () => {
         Alert.alert(
             'Delete',
-            'Are you sure you want to delete this?',
+            'Are you sure you want to delete this recurring schedule?',
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -96,7 +97,7 @@ export default function TransactionsScreen({ navigation }) {
                         try {
                             await api.delete(`/transactions/${selectedItem.id}`);
                             closeModal();
-                            fetchData(); // refresh data
+                            fetchData();
                         } catch (error) {
                             console.error('Error deleting transaction:', error);
                         }
@@ -107,24 +108,6 @@ export default function TransactionsScreen({ navigation }) {
         );
     };
 
-    const fetchCanEdit = async (transactionId) => {
-        try {
-            const res = await api.get(`/transactions/${transactionId}/can-edit`);
-            if (res.data.canEdit) {
-                setCanEdit(true);
-                setCannotEditReason('');
-            } else {
-                setCanEdit(false);
-                setCannotEditReason(res.data.reason || 'This transaction cannot be edited.');
-            }
-        } catch (error) {
-            console.error('Error checking can-edit:', error);
-            // If error occurs, default to not editable with generic message
-            setCanEdit(false);
-            setCannotEditReason('Unable to determine if editable.');
-        }
-    };
-
     const renderModalContent = () => {
         if (!selectedItem) return null;
         const creditorName = getUserName(selectedItem.creditor);
@@ -133,7 +116,7 @@ export default function TransactionsScreen({ navigation }) {
 
         return (
             <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Transaction Details</Text>
+                <Text style={styles.modalTitle}>Recurring Payment Details</Text>
 
                 <Text style={styles.modalLabel}>Creditor: {creditorName}</Text>
                 <Text style={styles.modalLabel}>Amount: {amountStr}</Text>
@@ -142,18 +125,19 @@ export default function TransactionsScreen({ navigation }) {
                     <Text style={styles.modalLabel}>Description: {selectedItem.description}</Text>
                 ) : null}
 
-                {selectedItem.timestamp && (
+                {selectedItem.recurrenceInterval && (
+                    <Text style={styles.modalLabel}>Interval: {selectedItem.recurrenceInterval}</Text>
+                )}
+                {selectedItem.nextPaymentDate && (
                     <Text style={styles.modalLabel}>
-                        Date: {new Date(selectedItem.timestamp).toLocaleDateString()}
+                        Next Payment: {new Date(selectedItem.nextPaymentDate).toLocaleDateString()}
                     </Text>
                 )}
 
                 <View style={styles.modalButtonsContainer}>
-                    {!selectedItem.isSettlement && (
-                        <TouchableOpacity style={styles.modalButton} onPress={handleEdit}>
-                            <Text style={[styles.modalButtonText, !canEdit && { color: 'grey' }]}>Edit</Text>
-                        </TouchableOpacity>
-                    )}
+                    <TouchableOpacity style={styles.modalButton} onPress={handleEdit}>
+                        <Text style={styles.modalButtonText}>Edit</Text>
+                    </TouchableOpacity>
                     <TouchableOpacity style={styles.modalButton} onPress={handleDelete}>
                         <Text style={[styles.modalButtonText, { color: 'red' }]}>Delete</Text>
                     </TouchableOpacity>
@@ -165,46 +149,26 @@ export default function TransactionsScreen({ navigation }) {
         );
     };
 
-    const onTransactionPress = async (item) => {
-        setSelectedItem(item);
-        setSelectedItemIsRecurring(false);
+    const renderRecurringItem = ({ item }) => {
+        const date = new Date(item.nextPaymentDate).toLocaleDateString();
 
-        // If it's settlement or normal transaction
-        // if settlement -> no need can-edit check because no edit anyway
-        // if normal non-settlement, do can-edit check:
-        if (!item.isSettlement) {
-            await fetchCanEdit(item.id);
-        } else {
-            // Settlement transaction can't be edited, no can-edit check needed
-            setCanEdit(false);
-            setCannotEditReason('This is a settlement transaction and cannot be edited.');
-        }
-
-        setShowModal(true);
-    };
-
-    const renderTransactionItem = ({ item }) => {
-        const date = new Date(item.timestamp).toLocaleDateString();
-        const isSettlement = item.isSettlement === true;
-
+        // Wrap entire item in TouchableOpacity to show modal
         return (
-            <TouchableOpacity onPress={() => onTransactionPress(item)}>
+            <TouchableOpacity onPress={() => {
+                setSelectedItem(item);
+                setSelectedItemIsRecurring(true);
+                setShowModal(true);
+            }}>
                 <View style={styles.debtItem}>
                     <View style={styles.debtInfo}>
-                        {isSettlement ? (
-                            <Text style={styles.debtText}>
-                                Settlement: {getUserName(item.creditor)} settled ${Number(item.amount).toFixed(2)}
-                            </Text>
-                        ) : (
-                            <Text style={styles.debtText}>
-                                {getUserName(item.creditor)} paid ${Number(item.amount).toFixed(2)}
-                            </Text>
-                        )}
+                        <Text style={styles.debtText}>
+                            {getUserName(item.creditor)} scheduled a ${Number(item.amount).toFixed(2)} payment
+                        </Text>
                     </View>
                     {item.description ? (
                         <Text style={styles.debtDescription}>{item.description}</Text>
                     ) : null}
-                    <Text style={styles.settledText}>On {date}</Text>
+                    <Text style={styles.settledText}>Next Payment: {date}</Text>
                 </View>
             </TouchableOpacity>
         );
@@ -213,17 +177,17 @@ export default function TransactionsScreen({ navigation }) {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>All Transactions</Text>
+                <Text style={styles.headerTitle}>All Scheduled Payments</Text>
             </View>
             {loading ? (
                 <ActivityIndicator style={{ marginTop: 20 }} size="large" color={colors.primary} />
-            ) : transactions.length === 0 ? (
-                <Text style={styles.noDataText}>No transactions found.</Text>
+            ) : recurringTransactions.length === 0 ? (
+                <Text style={styles.noDataText}>No upcoming recurring payments found.</Text>
             ) : (
                 <FlatList
-                    data={transactions}
+                    data={recurringTransactions}
                     keyExtractor={(item) => item.id}
-                    renderItem={renderTransactionItem}
+                    renderItem={renderRecurringItem}
                     contentContainerStyle={{ paddingBottom: 10 }}
                 />
             )}

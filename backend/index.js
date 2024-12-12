@@ -2,6 +2,7 @@
 
 const express = require('express');
 const cors = require('cors');
+const cron = require('node-cron');
 const bodyParser = require('body-parser');
 const admin = require('firebase-admin');
 
@@ -11,6 +12,7 @@ const serviceAccount = require('./serviceAccountKey.json');
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
 });
+console.log('Firebase initialized.');
 
 const db = admin.firestore();
 
@@ -30,21 +32,26 @@ app.get('/', (req, res) => {
 const debtsRoutes = require('./routes/debts');
 const choresRoutes = require('./routes/chores');
 const transactionsRoutes = require('./routes/transactions');
+const { processDueRecurringTransactions } = require('./routes/transactions'); // scheduler
 const shoppingListRoutes = require('./routes/shoppingList');
 const householdsRoutes = require('./routes/households');
-
-// Importing the new users route file
 const usersRoutes = require('./routes/users');
 
-// Use routes
+// routes
 app.use('/debts', debtsRoutes);
 app.use('/transactions', transactionsRoutes);
 app.use('/chores', choresRoutes);
 app.use('/shopping-list', shoppingListRoutes);
 app.use('/households', householdsRoutes);
-
-// Using the users route
 app.use('/users', usersRoutes);
+
+// recurring transactions auto-updating (00:00)
+cron.schedule('0 0 * * *', () => {
+    console.log('Running processDueRecurringTransactions() at midnight...');
+    processDueRecurringTransactions()
+        .then(() => console.log('Recurring transactions processed'))
+        .catch(err => console.error('Error processing recurring transactions:', err));
+});
 
 // Start the server
 app.listen(PORT, () => {

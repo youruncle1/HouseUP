@@ -11,6 +11,7 @@ import {
     KeyboardAvoidingView,
     ScrollView,
     Platform,
+    Modal,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -21,9 +22,17 @@ import colors from '../styles/MainStyles';
 export default function DebtScreen() {
     const navigation = useNavigation();
     const { currentHousehold } = useAppContext();
+    const [householdMembers, setHouseholdMembers] = useState([]);
     const [debts, setDebts] = useState([]);
     const [transactions, setTransactions] = useState([]);
-    const [householdMembers, setHouseholdMembers] = useState([]);
+    const [recurringTransactions, setRecurringTransactions] = useState([]);
+
+    // Modal states
+    const [showModal, setShowModal] = useState(false);
+    const [selectedItem, setSelectedItem] = useState(null);
+    const [selectedItemIsRecurring, setSelectedItemIsRecurring] = useState(false);
+    const [canEdit, setCanEdit] = useState(true);
+    const [cannotEditReason, setCannotEditReason] = useState('');
 
     useFocusEffect(
         React.useCallback(() => {
@@ -40,11 +49,10 @@ export default function DebtScreen() {
             const members = usersRes.data;
             setHouseholdMembers(members);
 
-            // Fetch debts
+            // Fetch debts and aggregate
             const debtsRes = await api.get(`/debts?householdId=${currentHousehold.id}`);
             const rawDebts = debtsRes.data;
 
-            // Aggregate debts by (debtor->creditor)
             const aggregated = {};
             rawDebts.forEach(d => {
                 const key = `${d.debtor}->${d.creditor}`;
@@ -54,24 +62,181 @@ export default function DebtScreen() {
                 aggregated[key] += d.amount;
             });
 
-            // Convert aggregated object into an array
             const aggregatedDebts = Object.keys(aggregated).map(key => {
                 const [debtor, creditor] = key.split('->');
                 return { debtor, creditor, amount: aggregated[key] };
             });
-
             setDebts(aggregatedDebts);
 
             // Fetch transactions
             const transRes = await api.get(`/transactions?householdId=${currentHousehold.id}`);
-            const allTransactions = transRes.data;
+            let allTransactions = transRes.data;
             allTransactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            setTransactions(allTransactions);
+
+            // Filter out recurring transactions
+            const normalTransactions = allTransactions.filter(t => !t.isRecurring);
+
+            // Set normalTransactions
+            setTransactions(normalTransactions);
+
+            // Fetch recurring transactions
+            const recurringRes = await api.get(`/transactions/recurring?householdId=${currentHousehold.id}`);
+            const allRecurring = recurringRes.data;
+            const filteredRecurring = allRecurring
+                .filter(rt => rt.nextPaymentDate && new Date(rt.nextPaymentDate).getTime())
+                .map(rt => {
+                    return {
+                        ...rt,
+                        nextPaymentDateObj: new Date(rt.nextPaymentDate)
+                    };
+                });
+
+            filteredRecurring.sort((a, b) => a.nextPaymentDateObj - b.nextPaymentDateObj);
+            setRecurringTransactions(filteredRecurring);
         } catch (error) {
             console.error('Error fetching data:', error);
         }
     };
 
+    const getUserName = (userId) => {
+        const member = householdMembers.find(m => m.id === userId);
+        return member ? member.name : userId;
+    };
+
+    const closeModal = () => {
+        setShowModal(false);
+        setSelectedItem(null);
+        setSelectedItemIsRecurring(false);
+        setCanEdit(true);
+        setCannotEditReason('');
+    };
+
+    const handleEdit = () => {
+        if (!canEdit) {
+            Alert.alert('Cannot Edit', cannotEditReason || 'This transaction cannot be edited.');
+            return;
+        }
+        navigation.navigate('DebtForm', { mode: 'edit', transaction: selectedItem });
+        closeModal();
+    };
+
+    const handleDelete = async () => {
+        Alert.alert(
+            'Delete',
+            'Are you sure you want to delete this?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await api.delete(`/transactions/${selectedItem.id}`);
+                            closeModal();
+                            fetchData();
+                        } catch (error) {
+                            console.error('Error deleting transaction:', error);
+                        }
+                    },
+                },
+            ],
+            { cancelable: false }
+        );
+    };
+
+    const fetchCanEdit = async (transactionId) => {
+        try {
+            const res = await api.get(`/transactions/${transactionId}/can-edit`);
+            if (res.data.canEdit) {
+                setCanEdit(true);
+                setCannotEditReason('');
+            } else {
+                setCanEdit(false);
+                setCannotEditReason(res.data.reason || 'This transaction cannot be edited.');
+            }
+        } catch (error) {
+            console.error('Error checking can-edit:', error);
+            setCanEdit(false);
+            setCannotEditReason('Unable to determine if editable.');
+        }
+    };
+
+    const onTransactionPress = async (item) => {
+        setSelectedItem(item);
+        setSelectedItemIsRecurring(false);
+
+        if (item.isSettlement) {
+            // Settlement transaction cannot be edited
+            setCanEdit(false);
+            setCannotEditReason('This is a settlement transaction and cannot be edited.');
+        } else {
+            // Normal transaction - check can-edit
+            await fetchCanEdit(item.id);
+        }
+
+        setShowModal(true);
+    };
+
+    const onRecurringPress = (item) => {
+        // Recurring placeholders always editable
+        setSelectedItem(item);
+        setSelectedItemIsRecurring(true);
+        setCanEdit(true); // always editable
+        setCannotEditReason('');
+        setShowModal(true);
+    };
+
+    const renderModalContent = () => {
+        if (!selectedItem) return null;
+        const creditorName = getUserName(selectedItem.creditor);
+        const amountStr = `$${Number(selectedItem.amount).toFixed(2)}`;
+        const participantsNames = selectedItem.participants.map(pid => getUserName(pid)).join(', ');
+
+        return (
+            <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>
+                    {selectedItemIsRecurring ? 'Recurring Payment Details' : 'Transaction Details'}
+                </Text>
+
+                <Text style={styles.modalLabel}>Creditor: {creditorName}</Text>
+                <Text style={styles.modalLabel}>Amount: {amountStr}</Text>
+                <Text style={styles.modalLabel}>Participants: {participantsNames}</Text>
+                {selectedItem.description ? (
+                    <Text style={styles.modalLabel}>Description: {selectedItem.description}</Text>
+                ) : null}
+
+                {selectedItemIsRecurring && selectedItem.recurrenceInterval && (
+                    <Text style={styles.modalLabel}>Interval: {selectedItem.recurrenceInterval}</Text>
+                )}
+                {selectedItemIsRecurring && selectedItem.nextPaymentDate && (
+                    <Text style={styles.modalLabel}>
+                        Next Payment: {new Date(selectedItem.nextPaymentDate).toLocaleDateString()}
+                    </Text>
+                )}
+
+                {!selectedItemIsRecurring && selectedItem.timestamp && (
+                    <Text style={styles.modalLabel}>
+                        Date: {new Date(selectedItem.timestamp).toLocaleDateString()}
+                    </Text>
+                )}
+
+                <View style={styles.modalButtonsContainer}>
+                    {/* Show Edit only if not settlement and not recurring (for recurring, always edit) */}
+                    {(!selectedItem.isSettlement || selectedItemIsRecurring) && (
+                        <TouchableOpacity style={styles.modalButton} onPress={handleEdit}>
+                            <Text style={[styles.modalButtonText, !canEdit && { color: 'grey' }]}>Edit</Text>
+                        </TouchableOpacity>
+                    )}
+                    <TouchableOpacity style={styles.modalButton} onPress={handleDelete}>
+                        <Text style={[styles.modalButtonText, { color: 'red' }]}>Delete</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.modalButton} onPress={closeModal}>
+                        <Text style={styles.modalButtonText}>Close</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        );
+    };
 
     const settleDebt = (debtItem) => {
         Alert.alert(
@@ -83,7 +248,7 @@ export default function DebtScreen() {
                     text: 'Yes',
                     onPress: async () => {
                         try {
-                            // Now call the new /debts/settle endpoint
+                            // Now call the /debts/settle endpoint
                             await api.post('/debts/settle', {
                                 debtor: debtItem.debtor,
                                 creditor: debtItem.creditor,
@@ -100,94 +265,33 @@ export default function DebtScreen() {
         );
     };
 
-    const getUserName = (userId) => {
-        const member = householdMembers.find(m => m.id === userId);
-        return member ? member.name : userId;
-    };
-
-    const renderDebtItem = ({ item }) => (
-        <TouchableOpacity onPress={() => settleDebt(item)}>
-            <View style={styles.debtItem}>
-                <View style={styles.debtInfo}>
-                    <Text style={styles.debtText}>
-                        {getUserName(item.debtor)} owes {getUserName(item.creditor)}
-                    </Text>
-                    <Text style={styles.amountText}>${item.amount.toFixed(2)}</Text>
-                </View>
-            </View>
-        </TouchableOpacity>
-    );
-
+    // For normal transactions in DebtScreen (Recent Transactions)
     const renderTransactionItem = ({ item }) => {
         const date = new Date(item.timestamp).toLocaleDateString();
         const isSettlement = item.isSettlement === true;
 
-        const deleteTransaction = () => {
-            Alert.alert(
-                'Delete Transaction',
-                'Are you sure you want to delete this transaction?',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                        text: 'Delete',
-                        style: 'destructive',
-                        onPress: async () => {
-                            try {
-                                await api.delete(`/transactions/${item.id}`);
-                                fetchData();
-                            } catch (error) {
-                                console.error('Error deleting transaction:', error);
-                            }
-                        },
-                    },
-                ],
-                { cancelable: false }
-            );
-        };
-
         return (
-            <View style={styles.debtItem}>
-                <View style={styles.debtInfo}>
-                    {isSettlement ? (
-                        <Text style={styles.debtText}>
-                            Settlement: {getUserName(item.creditor)} settled ${Number(item.amount).toFixed(2)}
-                        </Text>
-                    ) : (
-                        <Text style={styles.debtText}>
-                            {getUserName(item.creditor)} paid ${Number(item.amount).toFixed(2)}
-                        </Text>
-                    )}
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <TouchableOpacity onPress={deleteTransaction} style={{ marginLeft: 10 }}>
-                            <Ionicons name="trash-outline" size={24} color="red" />
-                        </TouchableOpacity>
-                        {!isSettlement && (
-                            <TouchableOpacity onPress={async () => {
-                                try {
-                                    const res = await api.get(`/transactions/${item.id}/can-edit`);
-                                    if (res.data.canEdit) {
-                                        navigation.navigate('DebtForm', { mode: 'edit', transaction: item });
-                                    } else {
-                                        Alert.alert('Cannot Edit', res.data.reason || 'This transaction cannot be edited.');
-                                    }
-                                } catch (error) {
-                                    console.error('Error checking can-edit:', error);
-                                    Alert.alert('Error', 'Unable to check if transaction can be edited.');
-                                }
-                            }}>
-                                <Ionicons name="create-outline" size={24} color="blue" />
-                            </TouchableOpacity>
+            <TouchableOpacity onPress={() => onTransactionPress(item)}>
+                <View style={styles.debtItem}>
+                    <View style={styles.debtInfo}>
+                        {isSettlement ? (
+                            <Text style={styles.debtText}>
+                                Settlement: {getUserName(item.creditor)} settled ${Number(item.amount).toFixed(2)}
+                            </Text>
+                        ) : (
+                            <Text style={styles.debtText}>
+                                {getUserName(item.creditor)} paid ${Number(item.amount).toFixed(2)}
+                            </Text>
                         )}
                     </View>
+                    {item.description ? (
+                        <Text style={styles.debtDescription}>{item.description}</Text>
+                    ) : null}
+                    <Text style={styles.settledText}>On {date}</Text>
                 </View>
-                {item.description ? (
-                    <Text style={styles.debtDescription}>{item.description}</Text>
-                ) : null}
-                <Text style={styles.settledText}>On {date}</Text>
-            </View>
+            </TouchableOpacity>
         );
     };
-
 
     return (
         <KeyboardAvoidingView
@@ -214,12 +318,53 @@ export default function DebtScreen() {
                         <FlatList
                             data={debts}
                             keyExtractor={(item) => `${item.debtor}->${item.creditor}`}
-                            renderItem={renderDebtItem}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity onPress={() => settleDebt(item)}>
+                                    <View style={styles.debtItem}>
+                                        <View style={styles.debtInfo}>
+                                            <Text style={styles.debtText}>
+                                                {getUserName(item.debtor)} owes {getUserName(item.creditor)}
+                                            </Text>
+                                            <Text style={styles.amountText}>${item.amount.toFixed(2)}</Text>
+                                        </View>
+                                    </View>
+                                </TouchableOpacity>
+                            )}
                             scrollEnabled={false}
                             contentContainerStyle={{ paddingBottom: 10 }}
                         />
                     )}
                 </View>
+
+                {/* Upcoming Recurring Payments Section */}
+                {recurringTransactions.length > 0 && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Upcoming Recurring Payments</Text>
+                        <TouchableOpacity onPress={() => onRecurringPress(recurringTransactions[0])}>
+                            <View style={styles.debtItem}>
+                                <View style={styles.debtInfo}>
+                                    <Text style={styles.debtText}>
+                                        {getUserName(recurringTransactions[0].creditor)} scheduled a {Number(recurringTransactions[0].amount).toFixed(2)} payment
+                                    </Text>
+                                </View>
+                                {recurringTransactions[0].description ? (
+                                    <Text style={styles.debtDescription}>{recurringTransactions[0].description}</Text>
+                                ) : null}
+                                <Text style={styles.settledText}>
+                                    Next Payment: {new Date(recurringTransactions[0].nextPaymentDate).toLocaleDateString()}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+                        {recurringTransactions.length > 1 && (
+                            <TouchableOpacity
+                                onPress={() => navigation.navigate('DebtScheduled')}
+                                style={styles.showMoreButton}
+                            >
+                                <Text style={styles.showMoreText}>Show More</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                )}
 
                 {/* Recent Transactions Section */}
                 <View style={styles.section}>
@@ -255,6 +400,19 @@ export default function DebtScreen() {
             >
                 <Ionicons name="add" size={36} color="white" />
             </TouchableOpacity>
+
+            <Modal
+                transparent={true}
+                visible={showModal}
+                animationType="fade"
+                onRequestClose={closeModal}
+            >
+                <View style={styles.modalBackground}>
+                    <View style={styles.modalContainer}>
+                        {renderModalContent()}
+                    </View>
+                </View>
+            </Modal>
         </KeyboardAvoidingView>
     );
 }
@@ -358,5 +516,45 @@ const styles = StyleSheet.create({
         color: '#4caf50',
         fontWeight: 'bold',
         textAlign: 'center',
+    },
+    modalBackground: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContainer: {
+        backgroundColor: '#fff',
+        padding: 20,
+        borderRadius: 10,
+        width: '80%',
+    },
+    modalContent: {
+        // additional styling if needed
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 10,
+        color: colors.primary,
+        textAlign: 'center',
+    },
+    modalLabel: {
+        fontSize: 16,
+        marginVertical: 5,
+        color: '#333',
+    },
+    modalButtonsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-evenly',
+        marginTop: 20,
+    },
+    modalButton: {
+        padding: 10,
+    },
+    modalButtonText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: colors.primary,
     },
 });
