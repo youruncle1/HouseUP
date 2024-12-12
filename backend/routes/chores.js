@@ -224,7 +224,6 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// GET /chores/userStats?householdId=...&userId=...
 // Fetch the stats doc and return it for charts
 router.get('/userStats', async (req, res) => {
     const { householdId, userId } = req.query;
