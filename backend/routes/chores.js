@@ -1,4 +1,10 @@
-// backend/routes/chores.js
+/**
+ * @file chores.js
+ * @brief Backend routes and logic for managing chores in the application, including CRUD operations,
+ *        user statistics updates, and chore reassignment functionality.
+ * @author Robert Zelníček <xzelni06@stud.fit.vutbr.cz>
+ * @date 12.12.2024
+ */
 const express = require('express');
 const router = express.Router();
 const admin = require('firebase-admin');

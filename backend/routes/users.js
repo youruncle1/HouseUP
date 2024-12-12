@@ -1,4 +1,10 @@
-// backend/routes/users.js
+/**
+ * @file users.js
+ * @brief Backend route for retrieving user data associated with a specific household, 
+ *        based on the provided household ID.
+ * @author Robert Zelníček <xzelni06@stud.fit.vutbr.cz>
+ * @date 12.12.2024
+ */
 const express = require('express');
 const router = express.Router();
 const admin = require('firebase-admin');

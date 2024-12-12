@@ -1,4 +1,11 @@
-// backend/routes/households.js
+/**
+ * @file households.js
+ * @brief Backend routes for managing household-related data, including default chores operations 
+ *        (add, fetch, delete) within a specific household.
+ * @author Robert Zelníček <xzelni06@stud.fit.vutbr.cz>
+ * @date 12.12.2024
+ */
+
 const express = require('express');
 const router = express.Router();
 const admin = require('firebase-admin');
