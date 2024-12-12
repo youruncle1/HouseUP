@@ -19,7 +19,11 @@ export default StyleSheet.create({
         marginLeft: 10,
         marginRight:10,
         alignItems: 'center',
-        borderRadius: 5,
+        borderRadius: 15,
+        borderColor:'#DDD',
+        borderLeftWidth:4,
+        borderTopLeftRadius:15,
+        borderBottomLeftRadius:15
     },
     ScheduledChore: {
         flexDirection: 'row',
@@ -55,7 +59,7 @@ export default StyleSheet.create({
         backgroundColor: colors.primary,
         paddingHorizontal: 10,
         paddingVertical: 5,
-        borderRadius: 5,
+        borderRadius: 10,
     },
     buttonText: { color: '#fff' },
     addButtonToggle: {
@@ -78,19 +82,34 @@ export default StyleSheet.create({
         borderColor: '#ddd',
     },
     inputpicker:{
+        fontSize: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 15,
+        borderWidth: 1,
+        borderColor: '#ddd',
         backgroundColor:'#fff',
-        marginBottom:10,
-        borderRadius:10,
+        borderRadius: 5,
+        color: colors.primary,
+        marginBottom: 15,
     },
     addButton: {
         backgroundColor: colors.primary,
         padding: 10,
-        borderRadius: 5,
+        borderRadius: 15,
+        width:200,
         alignItems: 'center',
+        alignSelf:'center',
     },
     addButtonText: { color: '#fff', fontWeight: 'bold' },
-    sectionHeader: { fontSize: 18, fontWeight: 'bold', marginHorizontal:10, marginTop:20 },
-
+    sectionHeader: { 
+        fontSize: 22,
+        fontWeight: 'bold',
+        marginHorizontal:10, 
+        marginTop:20,
+        marginBottom:5,
+        color:colors.secondary, 
+        flex:1,
+    },
     // New styles for AddChoreScreen
     addChoreContainer: {
         flex:1,
@@ -99,7 +118,7 @@ export default StyleSheet.create({
     addChoreTitle: {
         fontSize:20,
         fontWeight:'bold',
-        marginBottom:20,
+        marginBottom:2,
         marginTop:20,
         marginLeft:20,
     },
@@ -111,12 +130,14 @@ export default StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 10,
         paddingVertical: 15,
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
     },
     statsHeaderTitle: {
         color: 'white',
         fontWeight: 'bold',
         fontSize: 18,
+        marginLeft:0,
+        alignSelf:'center'
     },
     statsContent: {
         padding: 10
@@ -159,5 +180,62 @@ export default StyleSheet.create({
         position: 'absolute',
         bottom: 30,
         alignSelf: 'center',
+    },
+    DoneButton: {
+        width: 64,
+        height: 32,
+        borderRadius: 15,
+        borderWidth: 2,
+        borderColor: colors.primary,
+        backgroundColor: colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 0,
+        marginLeft: 10,
+    },
+    NoChoreText:{
+        fontSize: 14,
+        color: '#aaa',
+        textAlign: 'center',
+        padding:10,
+        marginHorizontal:40,
+        marginVertical:20,
+    },
+    othersChoresMessageText: {
+        fontSize: 14,
+        color: '#aaa',
+        textAlign: 'center',
+        padding:10,
+        marginHorizontal:40,
+        marginVertical:20,
+    },
+    switchContainer: {
+        backgroundColor: "#ededed",
+        //backgroundColor: "rgba(116,29,237,0.12)",
+        flexDirection: 'row',
+        justifyContent: 'center',
+        borderRadius: 15,
+        padding: 5,
+        paddingHorizontal: 5,
+        marginHorizontal: 50,
+        marginTop:20,
+        marginBottom:10
+
+    },
+    switchLabel: {
+        fontSize: 16,
+        fontWeight: "500",
+        color: "#333",
+    },
+    toggleOption: {
+        flex: 1,
+        paddingVertical: 13,
+        paddingHorizontal: 15,
+        alignItems: 'center',
+        borderRadius: 10,
+        marginHorizontal: 5,
+    },
+    toggleOptionSelected: {
+        backgroundColor: '#aaa',
     },
 });

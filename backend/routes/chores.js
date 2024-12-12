@@ -154,6 +154,7 @@ router.post('/generate_due', async (req, res) => {
             .get();
 
         if (defaultChoresSnap.empty) {
+            console.log('No default chores found for this household.');
             return res.status(200).json({ message: 'No default chores found for this household.' });
         }
 
@@ -167,6 +168,7 @@ router.post('/generate_due', async (req, res) => {
         });
 
         if (users.length === 0) {
+            console.log('No users found for this household.');
             return res.status(200).json({ message: 'No users found for this household.' });
         }
 
@@ -177,11 +179,21 @@ router.post('/generate_due', async (req, res) => {
         defaultChoresSnap.forEach(choreDoc => {
             const choreData = choreDoc.data();
             const frequency = choreData.frequencyDays || 7;
-            const lastGenerated = choreData.lastGenerated?.toDate() || new Date(0);
+
+            // Make sure lastGenerated is a Firestore Timestamp
+            let lastGenerated = null;
+            if (choreData.lastGenerated && choreData.lastGenerated.toDate) {
+                lastGenerated = choreData.lastGenerated.toDate();
+            } else {
+                // If it's missing, set a very old date so first generation happens immediately
+                lastGenerated = new Date(0);
+            }
+
             const diffDays = Math.floor((now - lastGenerated) / (1000*60*60*24));
+            console.log(`Checking chore "${choreData.name}" - Frequency: ${frequency} days, Last Generated: ${lastGenerated}, diffDays: ${diffDays}`);
 
             if (diffDays >= frequency) {
-                // Due to regenerate
+                // Time to generate a new chore
                 const randomUser = users[Math.floor(Math.random() * users.length)];
                 const newChoreRef = db.collection('chores').doc();
                 batch.set(newChoreRef, {
@@ -202,77 +214,17 @@ router.post('/generate_due', async (req, res) => {
                 batch.update(choreRef, { lastGenerated: admin.firestore.FieldValue.serverTimestamp() });
 
                 choresGenerated++;
+                console.log(`Generated new chore "${choreData.name}" for user "${randomUser.id}"`);
+            } else {
+                console.log(`Not yet time to generate chore "${choreData.name}".`);
             }
         });
 
         await batch.commit();
+        console.log(`${choresGenerated} chores generated based on frequency.`);
         res.status(200).json({ message: `${choresGenerated} chores generated based on frequency.` });
     } catch (error) {
         console.error('Error generating due chores:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// Remove or comment out the cleanup_weekly route since we no longer delete chores
-// router.delete('/cleanup_weekly', ... ) // Not needed anymore
-
-router.get('/stats', async (req, res) => {
-    const { householdId } = req.query;
-    if (!householdId) {
-        return res.status(400).json({ error: 'householdId is required' });
-    }
-    try {
-        let choresRef = db.collection('chores')
-            .where('householdId', '==', householdId);
-
-        const snapshot = await choresRef.get();
-        const chores = [];
-        snapshot.forEach(doc => chores.push({ id: doc.id, ...doc.data() }));
-
-        const userStats = {}; 
-        chores.forEach(ch => {
-            if (ch.completed) {
-                const completer = ch.completedBy;
-                const original = ch.originalAssignedTo;
-                const assignedTime = ch.timestamp?.toDate ? ch.timestamp.toDate().getTime() : null;
-                const completedTime = ch.completedTime?.toDate ? ch.completedTime.toDate().getTime() : null;
-                const diffTime = (assignedTime && completedTime) ? (completedTime - assignedTime) : null;
-
-                if (completer) {
-                    if (!userStats[completer]) {
-                        userStats[completer] = { completedCount: 0, takenOverCount: 0, totalCompletionTime: 0, countWithTime: 0 };
-                    }
-                    userStats[completer].completedCount += 1;
-
-                    // If completer != originalAssignedTo, it's a takeover
-                    if (original && original !== completer) {
-                        userStats[completer].takenOverCount += 1;
-                    }
-
-                    if (diffTime !== null) {
-                        userStats[completer].totalCompletionTime += diffTime;
-                        userStats[completer].countWithTime += 1;
-                    }
-                }
-            }
-        });
-
-        const results = [];
-        for (const userId in userStats) {
-            const data = userStats[userId];
-            const avgTime = data.countWithTime > 0 ? data.totalCompletionTime / data.countWithTime : null;
-            results.push({
-                userId,
-                completedCount: data.completedCount,
-                takenOverCount: data.takenOverCount,
-                averageCompletionTimeMS: avgTime
-            });
-        }
-
-        res.status(200).json(results);
-
-    } catch (error) {
-        console.error('Error fetching stats:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });

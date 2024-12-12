@@ -1,10 +1,10 @@
-// frontend/screens/AddChoreScreen.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useAppContext } from '../AppContext';
 import api from '../services/api';
 import choresStyles from '../styles/ChoresStyles';
-import { Picker } from '@react-native-picker/picker';
+import colors from '../styles/MainStyles';
+import RNPickerSelect from 'react-native-picker-select';
 import { Ionicons } from '@expo/vector-icons';
 
 function getCurrentWeekIdentifier() {
@@ -12,16 +12,19 @@ function getCurrentWeekIdentifier() {
     const year = now.getUTCFullYear();
     const oneJan = new Date(year, 0, 1);
     const numberOfDays = Math.floor((now - oneJan) / (24 * 60 * 60 * 1000));
-    const week = Math.ceil((numberOfDays + oneJan.getUTCDay()+1)/7);
+    const week = Math.ceil((numberOfDays + oneJan.getUTCDay() + 1)/7);
     return `${year}-W${week}`;
 }
 
 export default function AddChoreScreen({ navigation }) {
     const { currentHousehold } = useAppContext();
 
+    // State to toggle between immediate and scheduled chore forms
+    const [isScheduled, setIsScheduled] = useState(false);
+
     // State for scheduled (default) chore
     const [choreName, setChoreName] = useState('');
-    const [frequencyDays, setFrequencyDays] = useState(''); // default 7 days (weekly)
+    const [frequencyDays, setFrequencyDays] = useState('');
 
     // State for immediate chore
     const [newChore, setNewChore] = useState('');
@@ -119,76 +122,117 @@ export default function AddChoreScreen({ navigation }) {
 
     return (
         <View style={choresStyles.addChoreContainer}>
-            <ScrollView>
+            <ScrollView showsVerticalScrollIndicator={false}>
 
-                {/* Immediate Chore Section */}
-                <Text style={choresStyles.addChoreTitle}>Add immediate Chore</Text>
-                <View style={choresStyles.form}>
-                    <TextInput
-                        style={choresStyles.input}
-                        placeholder="Chore Name"
-                        value={newChore}
-                        onChangeText={setNewChore}
-                    />
+                {/* Two-option toggle (Immediate / Scheduled) */}
+                <View style={choresStyles.switchContainer}>
+                    <TouchableOpacity
+                        style={[choresStyles.toggleOption, !isScheduled && choresStyles.toggleOptionSelected]}
+                        onPress={() => setIsScheduled(false)}
+                    >
+                        <Text style={choresStyles.switchLabel}>Immediate</Text>
+                    </TouchableOpacity>
 
-                    {usersList.length > 0 ? (
-                        <Picker
-                            selectedValue={assignedUserId}
-                            style={choresStyles.inputpicker || choresStyles.input}
-                            onValueChange={(itemValue) => setAssignedUserId(itemValue)}
-                        >
-                            {usersList.map(user => (
-                                <Picker.Item key={user.id} label={user.name} value={user.id} />
-                            ))}
-                        </Picker>
-                    ) : (
-                        <Text>No users found in this household.</Text>
-                    )}
-
-                    <TouchableOpacity style={choresStyles.addButton} onPress={addImmediateChore}>
-                        <Text style={choresStyles.addButtonText}>Add Chore</Text>
+                    <TouchableOpacity
+                        style={[choresStyles.toggleOption, isScheduled && choresStyles.toggleOptionSelected]}
+                        onPress={() => setIsScheduled(true)}
+                    >
+                        <Text style={choresStyles.switchLabel}>Scheduled</Text>
                     </TouchableOpacity>
                 </View>
 
-                {/* Scheduled (Default) Chore Section */}
-                <Text style={choresStyles.addChoreTitle}>Add a New Scheduled Chore</Text>
-                <View style={choresStyles.form}>
-                    <TextInput
-                        style={choresStyles.input}
-                        placeholder="Chore Name"
-                        value={choreName}
-                        onChangeText={setChoreName}
-                    />
-                    <TextInput
-                        style={choresStyles.input}
-                        placeholder="Frequency in days (e.g., 7)"
-                        value={frequencyDays}
-                        onChangeText={setFrequencyDays}
-                        keyboardType="numeric"
-                    />
-                    <TouchableOpacity style={choresStyles.addButton} onPress={addDefaultChore}>
-                        <Text style={choresStyles.addButtonText}>Add scheduled chore</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Displaying Default Chores */}
-                <Text style={[choresStyles.addChoreTitle, {marginTop:20}]}>Scheduled Chores</Text>
-                {defaultChores.length === 0 ? (
-                    <Text>No scheduled chores found.</Text>
-                ) : (
-                    defaultChores.map(chore => (
-                        <View key={chore.id} style={choresStyles.ScheduledChore}>
-                            <Text style={choresStyles.scheduledchoreText}>
-                                {chore.name} ({chore.frequencyDays || 7} days)
-                            </Text>
-                            <TouchableOpacity style={{marginLeft:'auto'}} onPress={() => deleteDefaultChore(chore.id)}>
-                                <Ionicons name="trash-outline" size={24} color="red" />
+                {isScheduled ? (
+                    // SCHEDULED CHORE FORM
+                    <>
+                        <View style={choresStyles.form}>
+                            <TextInput
+                                style={choresStyles.input}
+                                placeholder="Chore Name"
+                                value={choreName}
+                                onChangeText={setChoreName}
+                            />
+                            <TextInput
+                                style={choresStyles.input}
+                                placeholder="Frequency in days (e.g., 7)"
+                                value={frequencyDays}
+                                onChangeText={setFrequencyDays}
+                                keyboardType="numeric"
+                            />
+                            <TouchableOpacity style={choresStyles.addButton} onPress={addDefaultChore}>
+                                <Text style={choresStyles.addButtonText}>Add scheduled chore</Text>
                             </TouchableOpacity>
                         </View>
-                    ))
-                )}
 
+                        <Text style={[choresStyles.addChoreTitle, {marginTop:20}]}>Scheduled Chores</Text>
+                        {defaultChores.length === 0 ? (
+                            <Text>No scheduled chores found.</Text>
+                        ) : (
+                            defaultChores.map(chore => (
+                                <View key={chore.id} style={choresStyles.ScheduledChore}>
+                                    <Text style={choresStyles.scheduledchoreText}>
+                                        {chore.name} ({chore.frequencyDays || 7} days)
+                                    </Text>
+                                    <TouchableOpacity style={{marginLeft:'auto'}} onPress={() => deleteDefaultChore(chore.id)}>
+                                        <Ionicons name="trash-outline" size={24} color="red" />
+                                    </TouchableOpacity>
+                                </View>
+                            ))
+                        )}
+                    </>
+                ) : (
+                    // IMMEDIATE CHORE FORM
+                    <>
+                        <View style={choresStyles.form}>
+                            <TextInput
+                                style={choresStyles.input}
+                                placeholder="Chore Name"
+                                value={newChore}
+                                onChangeText={setNewChore}
+                            />
+
+                            {usersList.length > 0 ? (
+                                <RNPickerSelect
+                                    onValueChange={(itemValue) => setAssignedUserId(itemValue)}
+                                    placeholder={{ label: 'Select a User', value: null }}
+                                    items={usersList.map(user => ({ label: user.name, value: user.id }))}
+                                    style={pickerSelectStyles}
+                                    useNativeAndroidPickerStyle={false}
+                                />
+                            ) : (
+                                <Text>No users found in this household.</Text>
+                            )}
+
+                            <TouchableOpacity style={choresStyles.addButton} onPress={addImmediateChore}>
+                                <Text style={choresStyles.addButtonText}>Add Chore</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </>
+                )}
             </ScrollView>
         </View>
     );
 }
+
+const pickerSelectStyles = StyleSheet.create({
+    inputIOS: {
+        fontSize: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 15,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 5,
+        color: '#333',
+        marginBottom: 15,
+    },
+    inputAndroid: {
+        fontSize: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 15,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        backgroundColor:'#fff',
+        borderRadius: 5,
+        color: '#555',
+        marginBottom: 15,
+    },
+});

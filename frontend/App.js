@@ -11,7 +11,6 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import ChoresScreen from './screens/ChoresScreen';
 import AddChoreScreen from './screens/AddChoreScreen';
-import ChoresStatsScreen from './screens/ChoresStatsScreen';
 import ShoppingListScreen from './screens/ShoppingListScreen';
 import ShoppingListScreen_AddItem from './screens/ShoppingListScreen_AddItem';
 import ShoppingListScreen_Settings from './screens/ShoppingListScreen_Settings';
@@ -34,7 +33,6 @@ function ChoresStack() {
         <Stack.Navigator>
             <Stack.Screen name="ChoresHome" component={ChoresScreen} options={{ title: 'Chores' }} />
             <Stack.Screen name="AddChore" component={AddChoreScreen} options={{ title: 'Add Chore' }} />
-            <Stack.Screen name="ChoresStats" component={ChoresStatsScreen} options={{ title: 'Stats' }} />
         </Stack.Navigator>
 
     );
