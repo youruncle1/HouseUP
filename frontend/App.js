@@ -11,6 +11,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import ChoresScreen from './screens/ChoresScreen';
 import AddChoreScreen from './screens/AddChoreScreen';
+import ChoreStatsScreen from './screens/ChoreStatsScreen';
 import ShoppingListScreen from './screens/ShoppingListScreen';
 import ShoppingListScreen_AddItem from './screens/ShoppingListScreen_AddItem';
 import ShoppingListScreen_Settings from './screens/ShoppingListScreen_Settings';
@@ -33,6 +34,7 @@ function ChoresStack() {
         <Stack.Navigator>
             <Stack.Screen name="ChoresHome" component={ChoresScreen} options={{ title: 'Chores' }} />
             <Stack.Screen name="AddChore" component={AddChoreScreen} options={{ title: 'Add Chore' }} />
+            <Stack.Screen name="ChoresStats" component={ChoreStatsScreen} options={{title: 'Statistics'}} />
         </Stack.Navigator>
 
     );
@@ -102,8 +104,8 @@ function DrawerContent({ closeDrawer }) {
 
     const users = [
         { id: 'user1@gmail.com', name: 'Denis', profileImage: 'https://upload.wikimedia.org/wikipedia/commons/4/43/Paul_Circle.png'},
-        { id: 'user2@gmail.com', name: 'Roman', profileImage: 'https://images.rawpixel.com/image_png_800/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDIyLTA4L2pvYjEwMzQtZWxlbWVudC0wNi0zOTcucG5n.png'},
-        { id: 'user3@gmail.com', name: 'Robo',  profileImage: 'https://www.pngfind.com/pngs/m/488-4887957_facebook-teerasej-profile-ball-circle-circular-profile-picture.png'},
+        { id: 'user2@gmail.com', name: 'Roman', profileImage: 'https://static.vecteezy.com/system/resources/thumbnails/035/544/575/small_2x/ai-generated-cheerful-black-man-looking-at-camera-isolated-on-transparent-background-african-american-male-person-portrait-png.png'},
+        { id: 'user3@gmail.com', name: 'Robo',  profileImage: 'https://t3.ftcdn.net/jpg/02/22/85/16/360_F_222851624_jfoMGbJxwRi5AWGdPgXKSABMnzCQo9RN.jpg'},
     ];
 
     const households = [

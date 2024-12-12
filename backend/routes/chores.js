@@ -4,20 +4,60 @@ const router = express.Router();
 const admin = require('firebase-admin');
 const db = admin.firestore();
 
-/**
- * Utility function to get current week identifier
- */
 function getCurrentWeekIdentifier() {
     const now = new Date();
     const year = now.getUTCFullYear();
     const oneJan = new Date(year,0,1);
-    const numberOfDays = Math.floor((now - oneJan) / (24 * 60 * 60 * 1000));
+    const numberOfDays = Math.floor((now - oneJan)/(24*60*60*1000));
     const week = Math.ceil((numberOfDays + oneJan.getUTCDay()+1)/7);
     return `${year}-W${week}`;
 }
 
-// No need for previous week identifier since we no longer delete chores.
+// Helper function: updateUserStats
+async function updateUserStats(householdId, userId, isTakeover, weekIdentifier) {
+    const today = new Date();
+    const yyyy = today.getUTCFullYear();
+    const mm = String(today.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(today.getUTCDate()).padStart(2, '0');
+    const dayKey = `${yyyy}-${mm}-${dd}`; 
 
+    const statsRef = db.collection('households')
+        .doc(householdId)
+        .collection('usersStats')
+        .doc(userId);
+
+    await db.runTransaction(async (t) => {
+        const doc = await t.get(statsRef);
+        let data = doc.exists ? doc.data() : {};
+
+        // Initialize fields if missing
+        if (!data.completedCount) data.completedCount = 0;
+        if (!data.takenOverCount) data.takenOverCount = 0;
+        if (!data.weeklyCompletionHistory) data.weeklyCompletionHistory = {};
+        if (!data.dailyCompletionHistory) data.dailyCompletionHistory = {};
+
+        data.completedCount += 1;
+        if (isTakeover) {
+            data.takenOverCount += 1;
+        }
+
+        // Update weekly history
+        if (!data.weeklyCompletionHistory[weekIdentifier]) {
+            data.weeklyCompletionHistory[weekIdentifier] = 0;
+        }
+        data.weeklyCompletionHistory[weekIdentifier] += 1;
+
+        // Update daily history
+        if (!data.dailyCompletionHistory[dayKey]) {
+            data.dailyCompletionHistory[dayKey] = 0;
+        }
+        data.dailyCompletionHistory[dayKey] += 1;
+
+        t.set(statsRef, data, { merge: true });
+    });
+}
+
+// GET /chores ...
 router.get('/', async (req, res) => {
     console.log('Received GET request for /chores');
     try {
@@ -47,6 +87,7 @@ router.get('/', async (req, res) => {
     }
 });
 
+// POST /chores ...
 router.post('/', async (req, res) => {
     console.log('Received POST request for /chores with data:', req.body);
     try {
@@ -69,16 +110,32 @@ router.post('/', async (req, res) => {
     }
 });
 
+// PUT /chores/:id/complete
 router.put('/:id/complete', async (req, res) => {
     const choreId = req.params.id;
     const { completedBy } = req.body;
     try {
         const choreRef = db.collection('chores').doc(choreId);
+        const choreDoc = await choreRef.get();
+        if (!choreDoc.exists) {
+            return res.status(404).json({ error: 'Chore not found' });
+        }
+        const choreData = choreDoc.data();
+
         await choreRef.update({ 
             completed: true, 
             completedBy, 
             completedTime: admin.firestore.FieldValue.serverTimestamp()
         });
+
+        // Update user stats
+        // Determine if takeover
+        const isTakeover = choreData.originalAssignedTo && choreData.originalAssignedTo !== completedBy;
+        const householdId = choreData.householdId;
+        const weekIdentifier = choreData.weekIdentifier || getCurrentWeekIdentifier();
+
+        await updateUserStats(householdId, completedBy, isTakeover, weekIdentifier);
+
         res.status(200).json({ message: 'Chore marked as completed' });
     } catch (error) {
         console.error('Error updating chore:', error);
@@ -86,6 +143,7 @@ router.put('/:id/complete', async (req, res) => {
     }
 });
 
+// PUT /chores/:id/assign ...
 router.put('/:id/assign', async (req, res) => {
     console.log(`Received PUT request for /chores/${req.params.id}/assign`);
     try {
@@ -100,6 +158,7 @@ router.put('/:id/assign', async (req, res) => {
     }
 });
 
+// DELETE /chores/:id ...
 router.delete('/:id', async (req, res) => {
     console.log(`Received DELETE request for /chores/${req.params.id}`);
     try {
@@ -113,120 +172,37 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-router.get('/templates', async (req, res) => {
-    try {
-        const templateRef = db.collection('template_chores');
-        const snapshot = await templateRef.get();
-        const templates = [];
-        snapshot.forEach(doc => templates.push({ id: doc.id, ...doc.data() }));
-        res.status(200).json(templates);
-    } catch (error) {
-        console.error('Error fetching template chores:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-router.post('/templates', async (req, res) => {
-    try {
-        const data = {
-            name: req.body.name,
-            defaultAssignedTo: req.body.defaultAssignedTo || null,
-            householdId: req.body.householdId || null
-        };
-        const docRef = await db.collection('template_chores').add(data);
-        res.status(201).json({ id: docRef.id, ...data });
-    } catch (error) {
-        console.error('Error adding template chore:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-router.post('/generate_due', async (req, res) => {
-    const { householdId } = req.query;
-    if (!householdId) {
-        return res.status(400).json({ error: 'householdId query param required' });
+// GET /chores/userStats?householdId=...&userId=...
+// Fetch the stats doc and return it for charts
+router.get('/userStats', async (req, res) => {
+    const { householdId, userId } = req.query;
+    if (!householdId || !userId) {
+        return res.status(400).json({ error: 'householdId and userId are required' });
     }
 
     try {
-        const defaultChoresSnap = await db.collection('households')
+        const statsRef = db.collection('households')
             .doc(householdId)
-            .collection('defaultChores')
-            .get();
+            .collection('usersStats')
+            .doc(userId);
 
-        if (defaultChoresSnap.empty) {
-            console.log('No default chores found for this household.');
-            return res.status(200).json({ message: 'No default chores found for this household.' });
+        const doc = await statsRef.get();
+        if (!doc.exists) {
+            return res.status(200).json({
+                completedCount: 0,
+                takenOverCount: 0,
+                weeklyCompletionHistory: {},
+                dailyCompletionHistory: {}
+            });
+        } else {
+            return res.status(200).json(doc.data());
         }
-
-        const usersSnap = await db.collection('users')
-            .where('householdId', '==', householdId)
-            .get();
-        
-        const users = [];
-        usersSnap.forEach(doc => {
-            users.push({ id: doc.id, ...doc.data() }); 
-        });
-
-        if (users.length === 0) {
-            console.log('No users found for this household.');
-            return res.status(200).json({ message: 'No users found for this household.' });
-        }
-
-        const now = new Date();
-        const batch = db.batch();
-        let choresGenerated = 0;
-
-        defaultChoresSnap.forEach(choreDoc => {
-            const choreData = choreDoc.data();
-            const frequency = choreData.frequencyDays || 7;
-
-            // Make sure lastGenerated is a Firestore Timestamp
-            let lastGenerated = null;
-            if (choreData.lastGenerated && choreData.lastGenerated.toDate) {
-                lastGenerated = choreData.lastGenerated.toDate();
-            } else {
-                // If it's missing, set a very old date so first generation happens immediately
-                lastGenerated = new Date(0);
-            }
-
-            const diffDays = Math.floor((now - lastGenerated) / (1000*60*60*24));
-            console.log(`Checking chore "${choreData.name}" - Frequency: ${frequency} days, Last Generated: ${lastGenerated}, diffDays: ${diffDays}`);
-
-            if (diffDays >= frequency) {
-                // Time to generate a new chore
-                const randomUser = users[Math.floor(Math.random() * users.length)];
-                const newChoreRef = db.collection('chores').doc();
-                batch.set(newChoreRef, {
-                    name: choreData.name,
-                    assignedTo: randomUser.id,
-                    originalAssignedTo: randomUser.id,
-                    completed: false,
-                    timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                    householdId: householdId,
-                    weekIdentifier: getCurrentWeekIdentifier()
-                });
-
-                // Update lastGenerated
-                const choreRef = db.collection('households')
-                    .doc(householdId)
-                    .collection('defaultChores')
-                    .doc(choreDoc.id);
-                batch.update(choreRef, { lastGenerated: admin.firestore.FieldValue.serverTimestamp() });
-
-                choresGenerated++;
-                console.log(`Generated new chore "${choreData.name}" for user "${randomUser.id}"`);
-            } else {
-                console.log(`Not yet time to generate chore "${choreData.name}".`);
-            }
-        });
-
-        await batch.commit();
-        console.log(`${choresGenerated} chores generated based on frequency.`);
-        res.status(200).json({ message: `${choresGenerated} chores generated based on frequency.` });
     } catch (error) {
-        console.error('Error generating due chores:', error);
+        console.error('Error fetching user stats:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-module.exports = router;
+module.exports = {
+    router
+};

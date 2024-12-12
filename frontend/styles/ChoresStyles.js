@@ -201,6 +201,14 @@ export default StyleSheet.create({
         marginHorizontal:40,
         marginVertical:20,
     },
+    NoChoremainText:{
+        fontSize: 14,
+        color: '#aaa',
+        textAlign: 'center',
+        padding:10,
+        marginHorizontal:40,
+        marginVertical:0,
+    },
     othersChoresMessageText: {
         fontSize: 14,
         color: '#aaa',
@@ -238,4 +246,60 @@ export default StyleSheet.create({
     toggleOptionSelected: {
         backgroundColor: '#aaa',
     },
+    profileImage: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        marginHorizontal: 10,
+        backgroundColor:'grey'
+    },
+    header: {
+        backgroundColor: colors.primary,
+        padding: 15,
+        flexDirection: 'row', // Align elements horizontally
+        alignItems: 'center',
+        justifyContent: 'space-between', // Space menu button and center content properly
+    },
+    menuButton: {
+        padding: 10, // Ensure touchable area for the button
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    headerContent: {
+        position: 'absolute', // Position it relative to the header
+        left: 0, // Reset alignment
+        right: 0, // Take the full width of the header
+        alignItems: 'center', // Center the content horizontally
+    },
+    householdName: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: 'white',
+    },
+    itemCounter: {
+        fontSize: 16,
+        color: 'white',
+        marginTop: 5,
+    },
+    // Add to ChoresStyles.js
+    statsHeader: {
+        flexDirection: 'row',
+        backgroundColor: '#6200EE',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 15,
+        justifyContent: 'space-between'
+    },
+    statsHeaderTitle: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 18,
+    },
+    statsSectionHeader: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 10,
+        marginTop: 20
+    }
+    
 });

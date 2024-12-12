@@ -14,7 +14,6 @@ import { useAppContext } from '../AppContext';
 import api from '../services/api';
 
 import choresStyles from '../styles/ChoresStyles';
-import shoppingListStyles from '../styles/ShoppingListStyles';
 import colors from '../styles/MainStyles';
 
 function getCurrentWeekIdentifier() {
@@ -26,7 +25,7 @@ function getCurrentWeekIdentifier() {
     return `${year}-W${week}`;
 }
 
-const ITEM_HEIGHT = 44;
+const ITEM_HEIGHT = 50;
 
 export default function ChoresScreen({ navigation }) {
     const { currentHousehold, showUserImages, currentUser } = useAppContext();
@@ -41,7 +40,6 @@ export default function ChoresScreen({ navigation }) {
     useEffect(() => {
         if (isFocused && currentHousehold && currentUser) {
             fetchUsers();
-            generateDueChores();
         }
     }, [isFocused, currentHousehold, currentUser]);
 
@@ -148,17 +146,6 @@ export default function ChoresScreen({ navigation }) {
         }
     }
 
-    async function generateDueChores() {
-        // Manually trigger the scheduled chore generation
-        try {
-            const res = await api.post(`/chores/generate_due?householdId=${currentHousehold.id}`);
-            // After generating, fetch chores again
-            fetchChoresData();
-        } catch (error) {
-            console.error('Error generating due chores:', error);
-        }
-    }
-
     function renderUserChoreItem(item) {
         let assignedDate = null;
         if (typeof item.timestamp === 'string') {
@@ -205,7 +192,7 @@ export default function ChoresScreen({ navigation }) {
                 {showUserImages && (
                     <Image
                         source={{ uri: profileUri }}
-                        style={shoppingListStyles.profileImage}
+                        style={choresStyles.profileImage}
                     />
                 )}
                 <View style={choresStyles.choreTextContainer}>
@@ -231,7 +218,7 @@ export default function ChoresScreen({ navigation }) {
                 {showUserImages && (
                     <Image
                         source={{ uri: completerProfile }}
-                        style={shoppingListStyles.profileImage}
+                        style={choresStyles.profileImage}
                     />
                 )}
                 <View style={choresStyles.choreTextContainer}>
@@ -251,22 +238,34 @@ export default function ChoresScreen({ navigation }) {
 
     return (
         <View style={choresStyles.container}>
-            <View style={shoppingListStyles.header}>
-                <TouchableOpacity style={shoppingListStyles.menuButton} onPress={() => navigation.openDrawer()}>
+            <View style={choresStyles.header}>
+                <TouchableOpacity style={choresStyles.menuButton} onPress={() => navigation.openDrawer()}>
                     <Ionicons name="menu" size={24} color="white" />
                 </TouchableOpacity>
-                <View style={shoppingListStyles.headerContent}>
-                    <Text style={shoppingListStyles.householdName}>{currentHousehold?.name || 'No Household Selected'}</Text>
-                    <Text style={shoppingListStyles.itemCounter}>{choresCount.done}/{choresCount.assigned} chores done this week</Text>
+                <View style={choresStyles.headerContent}>
+                    <Text style={choresStyles.householdName}>{currentHousehold?.name || 'No Household Selected'}</Text>
+                    <Text style={choresStyles.itemCounter}>{choresCount.done}/{choresCount.assigned} chores done this week</Text>
                 </View>
+                               {/* Current User Profile Image */}
+                               <Image
+                    source={{
+                        uri: currentUser?.profileImage,
+                    }}
+                    style={choresStyles.profileImage}
+                />
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={choresStyles.choreHeader}>
                     <Text style={choresStyles.sectionHeader}>Your tasks:</Text>
+                    <View style={choresStyles.choreHeader}>
+                    <TouchableOpacity style={choresStyles.iconButton} onPress={() => navigation.navigate('ChoresStats')}>
+                        <Ionicons name="stats-chart" size={24} color="black" />
+                    </TouchableOpacity>
+                </View>
                 </View>
 
-                <View style={{ height: containerHeight+51, overflow: 'hidden' }}>
+                <View style={{ height: containerHeight+30, overflow: 'hidden' }}>
                     <ScrollView
                         nestedScrollEnabled={true}
                         scrollEnabled={userChoresScrollable}
@@ -274,7 +273,7 @@ export default function ChoresScreen({ navigation }) {
                     >
                         {userChores.map(renderUserChoreItem)}
                         {userChores.length === 0 && (
-                            <Text style={choresStyles.NoChoreText}>
+                            <Text style={choresStyles.NoChoremainText}>
                                 You have completed all the tasks.
                             </Text>
                         )}
