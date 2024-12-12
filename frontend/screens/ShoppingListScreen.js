@@ -1,3 +1,9 @@
+/**
+ * @file ShoppingListScreen.js
+ * @brief Main shopping list screen where users see currently added items in shopping list of particular household
+ * @author Denis Milistenfer <xmilis00@stud.fit.vutbr.cz>
+ * @date 12.12.2024
+ */
 import React, { useState, useEffect } from 'react';
 import {
     View,
@@ -17,14 +23,15 @@ import { useIsFocused } from '@react-navigation/native';
 import { useAppContext } from '../AppContext';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
+// Main component for the Shopping List Screen
 export default function ShoppingListScreen({ navigation }) {
-    const [items, setItems] = useState([]);
-    const [users, setUsers] = useState({});
-    const isFocused = useIsFocused();
-    const [isModalVisible, setIsModalVisible] = useState(false);
-    const [priceInput, setPriceInput] = useState('');
-    const [currentItem, setCurrentItem] = useState(null);
-    const { currentHousehold, currentUser, showUserImages, hideCheckedItems } = useAppContext();
+    const [items, setItems] = useState([]); // State to hold the list of shopping items
+    const [users, setUsers] = useState({}); // State to hold user data, mapped by user IDs for quick access
+    const isFocused = useIsFocused();       // Hook to check if the screen is currently focused
+    const [isModalVisible, setIsModalVisible] = useState(false); // State to manage the visibility of the modal for entering price
+    const [priceInput, setPriceInput] = useState('');            // State to store the user's input for the item price in the modal
+    const [currentItem, setCurrentItem] = useState(null);        // State to hold the currently selected item (used for modal)
+    const { currentHousehold, currentUser, showUserImages, hideCheckedItems } = useAppContext(); // Context values to manage tcurrent household, user and UI preferences
 
     // Fetch items when the screen is focused or the household changes
     useEffect(() => {
@@ -67,19 +74,35 @@ export default function ShoppingListScreen({ navigation }) {
 
     // Sort items so that checked items appear last
     const sortedItems = filteredItems.sort((a, b) => {
-        if (a.purchased === b.purchased) return 0; // No sorting if both are same
-        return a.purchased ? 1 : -1; // Move purchased items to the end
+        if (a.purchased === b.purchased) return 0;
+        return a.purchased ? 1 : -1;
     });
 
-    // Mark/Unmark item as purchased in shopping list (and create a debt)
+    // Mark/Unmark item as purchased in shopping list
     const togglePurchaseItem = async (id, currentState, item) => {
-        if ( !currentState && ((item?.createdBy !== currentUser.id && item?.debtOption === 'single') || item?.debtOption === 'group')) {
-            // Save the current item and show the modal
+        if (!currentState && ((item?.createdBy !== currentUser.id && item?.debtOption === 'single') || item?.debtOption === 'group')) {
+            // Set the current item and show modal for entering price
             setCurrentItem(item);
             setIsModalVisible(true);
+        } else if (currentState && item?.transactionId) {
+            // Handle unmarking the item (removing the transaction and related debts)
+            try {
+                // Delete the associated transaction and related debts
+                await api.delete(`/transactions/${item.transactionId}`);
+                console.log(`Transaction ${item.transactionId} and related debts removed.`);
+
+                // Unmark the item as purchased
+                await api.put(`/shopping-list/${id}`, { purchased: false, transactionId: "" });
+                console.log(`Item ${id} unmarked as purchased.`);
+
+                // Refresh the shopping list
+                fetchItems();
+            } catch (error) {
+                console.error('Error unmarking purchased item or deleting transaction:', error);
+            }
         } else {
             try {
-                // Directly toggle the purchased state if not debt-related
+                // Directly unmark item if no transaction/debt is involved
                 await api.put(`/shopping-list/${id}`, { purchased: !currentState });
                 fetchItems(); // Refresh the list
             } catch (error) {
@@ -87,6 +110,7 @@ export default function ShoppingListScreen({ navigation }) {
             }
         }
     };
+
     // Create 1-1 debt for a purchased item
     const handleSingleDebtSubmit = async () => {
         if (priceInput && !isNaN(priceInput)) {
@@ -96,8 +120,8 @@ export default function ShoppingListScreen({ navigation }) {
                 // Step 1: Create a transaction
                 const transactionResponse = await api.post('/shopping-list/transactions', {
                     householdId: currentHousehold.id,
-                    creditor: currentUser.id, // Current user is the purchaser
-                    participants: [currentItem.createdBy], // The user who added the item
+                    creditor: currentUser.id,
+                    participants: [currentItem.createdBy],
                     amount: parsedPrice,
                     description: `Debt for purchasing ${currentItem.name}`,
                 });
@@ -116,8 +140,11 @@ export default function ShoppingListScreen({ navigation }) {
 
                 console.log('Debt and transaction created successfully!');
 
-                // Step 3: Mark the item as purchased
-                await api.put(`/shopping-list/${currentItem.id}`, { purchased: true });
+                // Step 3: Mark the item as purchased and associate it with the transaction
+                await api.put(`/shopping-list/${currentItem.id}`, {
+                    purchased: true,
+                    transactionId: transactionId,
+                });
 
                 // Reset state and refresh items
                 setIsModalVisible(false);
@@ -143,26 +170,26 @@ export default function ShoppingListScreen({ navigation }) {
                 // Calculate individual contribution
                 const individualDebtAmount = parsedPrice / householdUsers.length;
 
-                // Exclude the purchaser from the debt contributors
+                // Exclude member who purchased the item from debt contributors
                 const contributors = householdUsers.filter(user => user.id !== currentUser.id);
 
                 // Step 2: Create a transaction
                 const transactionResponse = await api.post('/shopping-list/transactions', {
                     householdId: currentHousehold.id,
-                    creditor: currentUser.id, // Current user is the purchaser
-                    participants: contributors.map(user => user.id), // All users except the purchaser
+                    creditor: currentUser.id,
+                    participants: contributors.map(user => user.id),
                     amount: parsedPrice,
                     description: `Debt for purchasing ${currentItem.name}`,
                 });
 
                 const transactionId = transactionResponse.data.id;
 
-                // Step 3: Create debts for each contributor
+                // Step 3: Create debts for each member of household (without member who purchased item)
                 for (const contributor of contributors) {
                     await api.post('/shopping-list/debts', {
                         amount: individualDebtAmount,
-                        creditor: currentUser.id, // Current user (the purchaser) is the creditor
-                        debtor: contributor.id, // The user contributing to the debt
+                        creditor: currentUser.id,
+                        debtor: contributor.id,
                         householdId: currentHousehold.id,
                         relatedTransactionId: transactionId,
                         isSettled: false,
@@ -171,8 +198,11 @@ export default function ShoppingListScreen({ navigation }) {
 
                 console.log('Group debts and transaction created successfully!');
 
-                // Step 4: Mark the item as purchased
-                await api.put(`/shopping-list/${currentItem.id}`, { purchased: true });
+                // Step 4: Mark the item as purchased and associate the transaction
+                await api.put(`/shopping-list/${currentItem.id}`, {
+                    purchased: true,
+                    transactionId: transactionId,
+                });
 
                 // Reset state and refresh items
                 setIsModalVisible(false);
@@ -236,13 +266,13 @@ export default function ShoppingListScreen({ navigation }) {
             {showUserImages && (
                 <Image
                     source={{
-                        uri: users[item.createdBy] || 'https://www.pngfind.com/pngs/m/488-4887957_facebook-teerasej-profile-ball-circle-circular-profile-picture.png',
+                        uri: users[item.createdBy],
                     }}
                     style={styles.profileImage}
                 />
             )}
 
-            {/* Delete */}
+            {/* Delete button*/}
             <View style={styles.deleteButton}>
                 <TouchableOpacity onPress={() => deleteItem(item.id)}>
                     <Ionicons name="close-circle" size={24} color="red" />
@@ -253,16 +283,18 @@ export default function ShoppingListScreen({ navigation }) {
 
     return (
         <View style={styles.container}>
-            {/* Header Section */}
+            {/* Header section */}
             <View style={styles.header}>
+                {/* Menu button */}
                 <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
                     <Ionicons name="menu" size={24} color="white" />
                 </TouchableOpacity>
+                {/* Household and stats */}
                 <View style={styles.headerContent}>
                     <Text style={styles.householdName}>{currentHousehold?.name || 'No Household Selected'}</Text>
                     <Text style={styles.itemCounter}>{items.filter((item) => item.purchased).length}/{items.length} items are bought</Text>
                 </View>
-                {/* Current User Profile Image */}
+                {/* User profile image */}
                 <Image
                     source={{
                         uri: currentUser?.profileImage,
@@ -271,7 +303,7 @@ export default function ShoppingListScreen({ navigation }) {
                 />
             </View>
 
-            {/* Shopping List Title + Settings Button */}
+            {/* Shopping list title + settings Button */}
             <View style={styles.listHeader}>
                 <Text style={styles.listTitle}>Shopping list:</Text>
                 <TouchableOpacity style={styles.listSettings} onPress={() => navigation.navigate('ShoppingListSettings')}>
@@ -279,7 +311,7 @@ export default function ShoppingListScreen({ navigation }) {
                 </TouchableOpacity>
             </View>
 
-            {/* Shopping List */}
+            {/* Shopping list items */}
             <View style={styles.listContainer}>
                 <FlatList
                     data={sortedItems}
@@ -290,17 +322,17 @@ export default function ShoppingListScreen({ navigation }) {
                 />
             </View>
 
-            {/* Add Button */}
+            {/* Add button */}
             <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('AddItem')}>
                 <Ionicons name="add" size={36} color="white" />
             </TouchableOpacity>
 
-            {/* Modal for entering the price */}
+            {/* Modal for entering price */}
             <Modal
                 visible={isModalVisible}
                 transparent={true}
                 animationType="fade"
-                onRequestClose={() => setIsModalVisible(false)} // Close modal on back button press
+                onRequestClose={() => setIsModalVisible(false)}
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContainer}>
