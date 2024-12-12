@@ -22,7 +22,6 @@ export default function TransactionsScreen({ navigation }) {
     const [householdMembers, setHouseholdMembers] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    // Modal states
     const [showModal, setShowModal] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
     const [selectedItemIsRecurring, setSelectedItemIsRecurring] = useState(false);
@@ -46,10 +45,10 @@ export default function TransactionsScreen({ navigation }) {
 
             const transRes = await api.get(`/transactions?householdId=${currentHousehold.id}`);
             let allTransactions = transRes.data;
-            // Sort by date descending
+            // sort by date x descending
             allTransactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-            // Filter out recurring transactions
+            // filter out recurring transactions
             const normalTransactions = allTransactions.filter(t => !t.isRecurring);
 
             setTransactions(normalTransactions);
@@ -60,11 +59,13 @@ export default function TransactionsScreen({ navigation }) {
         }
     };
 
+    // convert userid to username
     const getUserName = (userId) => {
         const member = householdMembers.find(m => m.id === userId);
         return member ? member.name : userId;
     };
 
+    // fetch img on id
     const getUserImage = (userId) => {
         const member = householdMembers.find(m => m.id === userId);
         return member?.profileImage || 'https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg';
@@ -139,7 +140,7 @@ export default function TransactionsScreen({ navigation }) {
 
         return (
             <View style={styles.modalContent}>
-                {/* Header with icon and title, centered */}
+                {/* Header */}
                 <View style={[styles.modalHeader, { justifyContent: 'center', alignItems: 'center' }]}>
                     <Ionicons name="receipt-outline" size={28} color={colors.primary} style={{ marginRight: 10 }} />
                     <Text style={styles.modalTitle}>{title}</Text>
@@ -147,7 +148,7 @@ export default function TransactionsScreen({ navigation }) {
 
                 <View style={styles.modalDivider} />
 
-                {/* Info Rows */}
+                {/* Info */}
                 <View style={styles.modalInfoRow}>
                     <Text style={styles.modalInfoLabel}>Creditor:</Text>
                     <Text style={styles.modalInfoValue}>{creditorName}</Text>
@@ -181,7 +182,7 @@ export default function TransactionsScreen({ navigation }) {
 
                 <View style={[styles.modalDivider, { marginTop: 20 }]} />
 
-                {/* Buttons with icons */}
+                {/* Buttons */}
                 <View style={styles.modalButtonsContainer}>
                     {(!selectedItem.isSettlement || selectedItemIsRecurring) && (
                         <TouchableOpacity
@@ -280,7 +281,7 @@ export default function TransactionsScreen({ navigation }) {
         return (
             <TouchableOpacity onPress={() => onTransactionPress(item)}>
                 <View style={styles.transactionItemRow}>
-                    {/* Left side: Profile pic + text info */}
+                    {/* Left side - Profile pic desc\n datetime\n creditor */}
                     <View style={styles.transactionLeft}>
                         <Image
                             source={{ uri: getUserImage(item.creditor) }}
@@ -295,7 +296,7 @@ export default function TransactionsScreen({ navigation }) {
                         </View>
                     </View>
 
-                    {/* Right side: Amount + participants images */}
+                    {/* Right side - Amount\n participants images */}
                     <View style={styles.transactionRight}>
                         <Text style={styles.transactionAmount}>Kč {Number(item.amount).toFixed(2)}</Text>
                         <View style={styles.transactionParticipants}>
@@ -313,6 +314,7 @@ export default function TransactionsScreen({ navigation }) {
         );
     };
 
+    {/* month divisor */}
     const renderSectionHeader = ({ section: { title } }) => (
         <Text style={styles.monthHeader}>{title}</Text>
     );
@@ -336,6 +338,7 @@ export default function TransactionsScreen({ navigation }) {
                 />
             )}
 
+            {/* Modal PopUp */}
             <Modal
                 transparent={true}
                 visible={showModal}
@@ -350,7 +353,7 @@ export default function TransactionsScreen({ navigation }) {
                     <TouchableOpacity
                         style={styles.modalContainer}
                         activeOpacity={1}
-                        onPress={() => {}} // prevent closing when tapping inside the modal
+                        onPress={() => {}} // prevent closing on inside tap
                     >
                         {renderModalContent()}
                     </TouchableOpacity>

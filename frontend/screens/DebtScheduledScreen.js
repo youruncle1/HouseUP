@@ -24,7 +24,6 @@ export default function DebtScheduledScreen({ navigation }) {
     const [householdMembers, setHouseholdMembers] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    // Modal states
     const [showModal, setShowModal] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
     const [selectedItemIsRecurring, setSelectedItemIsRecurring] = useState(false);
@@ -40,16 +39,16 @@ export default function DebtScheduledScreen({ navigation }) {
     const fetchData = async () => {
         try {
             setLoading(true);
-            // Fetch users for name mapping
+            // fetch users
             const usersRes = await api.get(`/users?householdId=${currentHousehold.id}`);
             const members = usersRes.data;
             setHouseholdMembers(members);
 
-            // Fetch all recurring transactions
+            // fetch recurring transactions
             const recurringRes = await api.get(`/transactions/recurring?householdId=${currentHousehold.id}`);
             const allRecurring = recurringRes.data;
 
-            // Filter and sort them by nextPaymentDate ascending
+            // filter and sort by nextPaymentDate ASCENDING
             const filteredRecurring = allRecurring
                 .filter(rt => rt.nextPaymentDate && new Date(rt.nextPaymentDate).getTime())
                 .map(rt => ({
@@ -66,6 +65,7 @@ export default function DebtScheduledScreen({ navigation }) {
         }
     };
 
+    // get username by id
     const getUserName = (userId) => {
         const member = householdMembers.find(m => m.id === userId);
         return member ? member.name : userId;
@@ -115,16 +115,15 @@ export default function DebtScheduledScreen({ navigation }) {
 
         return (
             <View style={styles.modalContent}>
-                {/* Header with icon and title */}
+                {/* Header */}
                 <View style={styles.modalHeader}>
                     <Ionicons name="repeat-outline" size={28} color={colors.primary} style={{ marginRight: 10 }} />
                     <Text style={styles.modalTitle}>Recurring Payment Details</Text>
                 </View>
 
-                {/* Divider */}
                 <View style={styles.modalDivider} />
 
-                {/* Info Rows */}
+                {/* Info */}
                 <View style={styles.modalInfoRow}>
                     <Text style={styles.modalInfoLabel}>Creditor:</Text>
                     <Text style={styles.modalInfoValue}>{creditorName}</Text>
@@ -160,7 +159,6 @@ export default function DebtScheduledScreen({ navigation }) {
                     </View>
                 )}
 
-                {/* Divider */}
                 <View style={[styles.modalDivider, { marginTop: 20 }]} />
 
                 {/* Buttons */}
@@ -184,13 +182,13 @@ export default function DebtScheduledScreen({ navigation }) {
         );
     };
 
-    // Convert numeric month to name
+    // numeric month to str
     const monthNames = [
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
     ];
 
-    // Group recurring transactions by year-month
+    // group recurring by year-month
     const sections = [];
     const groups = {};
     for (let rt of recurringTransactions) {
@@ -204,14 +202,14 @@ export default function DebtScheduledScreen({ navigation }) {
         groups[yearMonth].push(rt);
     }
 
-    // Sort year-month keys descending by date
+    // sort year-month descending by date
     const sortedYearMonths = Object.keys(groups).sort((a,b) => {
         const [yearA, monthA] = a.split('-').map(Number);
         const [yearB, monthB] = b.split('-').map(Number);
-        // For ascending order:
-        // Compare years ascending first
+
+        // comp years ASCENDING (furthest - lowest)
         if (yearA !== yearB) return yearA - yearB;
-        // If same year, compare months ascending
+
         return monthA - monthB;
     });
 
@@ -222,7 +220,6 @@ export default function DebtScheduledScreen({ navigation }) {
     }
 
     const renderRecurringItem = ({ item }) => {
-        // Similar styling to DebtScreen recurring item
         const dateStr = item.nextPaymentDateObj.toLocaleDateString();
         const description = item.description || "Not described";
         const amount = `Kč ${Number(item.amount).toFixed(2)}`;
@@ -280,12 +277,12 @@ export default function DebtScheduledScreen({ navigation }) {
                 visible={showModal}
                 animationType="fade"
                 useNativeDriver={true}
-                onRequestClose={closeModal} // Android back button handling
+                onRequestClose={closeModal} // Android
             >
                 <TouchableOpacity
                     style={styles.modalBackground}
                     activeOpacity={1}
-                    onPress={closeModal} // Closes modal when tapping outside
+                    onPress={closeModal}
                 >
                     <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
                         {renderModalContent()}
@@ -369,7 +366,7 @@ const styles = StyleSheet.create({
         width: '80%',
     },
     modalContent: {
-        // additional styling if needed
+        //
     },
     modalLabel: {
         fontSize: 16,
@@ -400,13 +397,13 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
         color: '#333',
-        flex: 1, // so both label and value have room
+        flex: 1,
     },
     modalInfoValue: {
         fontSize: 16,
         color: '#333',
         flex: 1,
-        textAlign: 'right', // align values to the right
+        textAlign: 'right',
     },
     modalButtonsContainer: {
         flexDirection: 'row',

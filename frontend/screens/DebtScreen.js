@@ -27,7 +27,6 @@ export default function DebtScreen() {
     const [transactions, setTransactions] = useState([]);
     const [recurringTransactions, setRecurringTransactions] = useState([]);
 
-    // Modal states
     const [showModal, setShowModal] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
     const [selectedItemIsRecurring, setSelectedItemIsRecurring] = useState(false);
@@ -49,7 +48,7 @@ export default function DebtScreen() {
             const members = usersRes.data;
             setHouseholdMembers(members);
 
-            // Fetch debts and aggregate
+            // Fetch debts and join together/aggregate
             const debtsRes = await api.get(`/debts?householdId=${currentHousehold.id}`);
             const rawDebts = debtsRes.data;
 
@@ -73,10 +72,9 @@ export default function DebtScreen() {
             let allTransactions = transRes.data;
             allTransactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-            // Filter out recurring transactions
+            // Filter out recurring
             const normalTransactions = allTransactions.filter(t => !t.isRecurring);
 
-            // Set normalTransactions
             setTransactions(normalTransactions);
 
             // Fetch recurring transactions
@@ -171,7 +169,7 @@ export default function DebtScreen() {
         setSelectedItemIsRecurring(false);
 
         if (item.isSettlement) {
-            // Settlement transaction cannot be edited
+            // Settlement transaction cant be edited
             setCanEdit(false);
             setCannotEditReason('This is a settlement transaction and cannot be edited.');
         } else {
@@ -183,10 +181,9 @@ export default function DebtScreen() {
     };
 
     const onRecurringPress = (item) => {
-        // Recurring placeholders always editable
         setSelectedItem(item);
         setSelectedItemIsRecurring(true);
-        setCanEdit(true); // always editable
+        setCanEdit(true);
         setCannotEditReason('');
         setShowModal(true);
     };
@@ -197,13 +194,13 @@ export default function DebtScreen() {
         const amountStr = `Kč ${Number(selectedItem.amount).toFixed(2)}`;
         const participantsNames = selectedItem.participants.map(pid => getUserName(pid)).join(', ');
 
-        // Determine title and icon based on whether it's recurring
+        // changes icon based on recurring/transaction
         const title = selectedItemIsRecurring ? 'Recurring Payment Details' : 'Transaction Details';
         const iconName = selectedItemIsRecurring ? 'repeat-outline' : 'receipt-outline';
 
         return (
             <View style={styles.modalContent}>
-                {/* Header with icon and title */}
+                {/* Header */}
                 <View style={[styles.modalHeader, { justifyContent: 'center', alignItems: 'center' }]}>
                     <Ionicons name={iconName} size={28} color={colors.primary} style={{ marginRight: 10 }} />
                     <Text style={styles.modalTitle}>{title}</Text>
@@ -211,7 +208,7 @@ export default function DebtScreen() {
 
                 <View style={styles.modalDivider} />
 
-                {/* Info Rows */}
+                {/* Info */}
                 <View style={styles.modalInfoRow}>
                     <Text style={styles.modalInfoLabel}>Creditor:</Text>
                     <Text style={styles.modalInfoValue}>{creditorName}</Text>
@@ -234,7 +231,7 @@ export default function DebtScreen() {
                     </View>
                 ) : null}
 
-                {/* Show recurring-specific fields */}
+                {/* recurring-specific info */}
                 {selectedItemIsRecurring && selectedItem.recurrenceInterval && (
                     <View style={styles.modalInfoRow}>
                         <Text style={styles.modalInfoLabel}>Interval:</Text>
@@ -250,7 +247,7 @@ export default function DebtScreen() {
                     </View>
                 )}
 
-                {/* Show normal transaction-specific fields */}
+                {/* normal transaction info */}
                 {!selectedItemIsRecurring && selectedItem.timestamp && (
                     <View style={styles.modalInfoRow}>
                         <Text style={styles.modalInfoLabel}>Date:</Text>
@@ -311,7 +308,6 @@ export default function DebtScreen() {
                     text: 'Yes',
                     onPress: async () => {
                         try {
-                            // Now call the /debts/settle endpoint
                             await api.post('/debts/settle', {
                                 debtor: debtItem.debtor,
                                 creditor: debtItem.creditor,
@@ -328,7 +324,6 @@ export default function DebtScreen() {
         );
     };
 
-    // For normal transactions in DebtScreen (Recent Transactions)
     const renderTransactionItem = ({ item }) => {
         const dateObj = new Date(item.timestamp);
         const dateStr = dateObj.toLocaleDateString();
@@ -340,7 +335,7 @@ export default function DebtScreen() {
         return (
             <TouchableOpacity onPress={() => onTransactionPress(item)}>
                 <View style={styles.transactionItemRow}>
-                    {/* Left side: Profile pic + text info */}
+                    {/* Left side - Profile pic desc\n datetime\n creditor */}
                     <View style={styles.transactionLeft}>
                         <Image
                             source={{ uri: getUserImage(item.creditor) }}
@@ -355,7 +350,7 @@ export default function DebtScreen() {
                         </View>
                     </View>
 
-                    {/* Right side: Amount + participants images */}
+                    {/* Right side - Amount\n participants images */}
                     <View style={styles.transactionRight}>
                         <Text style={styles.transactionAmount}>Kč {Number(item.amount).toFixed(2)}</Text>
                         <View style={styles.transactionParticipants}>
@@ -378,6 +373,7 @@ export default function DebtScreen() {
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
+            {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
                     <Ionicons name="menu" size={24} color="white" />
@@ -411,7 +407,7 @@ export default function DebtScreen() {
                                 renderItem={({ item }) => (
                                     <TouchableOpacity onPress={() => settleDebt(item)}>
                                         <View style={styles.debtItemRow}>
-                                            {/* Left side: Debtor info */}
+                                            {/* Left - Profilepic Debtor */}
                                             <View style={styles.debtorContainer}>
                                                 <Image
                                                     source={{ uri: getUserImage(item.debtor) }}
@@ -423,10 +419,10 @@ export default function DebtScreen() {
                                                 </View>
                                             </View>
 
-                                            {/* Arrow in the middle */}
+                                            {/* Arrow */}
                                             <Ionicons name="arrow-forward-outline" size={20} color="#333" style={{marginHorizontal:20}}/>
 
-                                            {/* Right side: Creditor info */}
+                                            {/* Right side - Creditor */}
                                             <View style={styles.creditorContainer}>
                                                 <Text style={styles.creditorName}>{getUserName(item.creditor)}</Text>
                                                 <Image
@@ -443,13 +439,14 @@ export default function DebtScreen() {
                     }
                 </View>
 
-                {/* Upcoming Recurring Payments Section */}
+                {/* Upcoming Scheduled Payments Section */}
                 {recurringTransactions.length > 0 && (
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Upcoming Scheduled Payment</Text>
                         <TouchableOpacity onPress={() => onRecurringPress(recurringTransactions[0])}>
                             <View style={styles.recurringItemRow}>
-                                {/* Left Side: Date above, Description below */}
+
+                                {/* Left Side - Date\n Description */}
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.recurrenceDate}>
                                         {new Date(recurringTransactions[0].nextPaymentDate).toLocaleDateString()}
@@ -459,7 +456,7 @@ export default function DebtScreen() {
                                     </Text>
                                 </View>
 
-                                {/* Right Side: Amount, centered vertically */}
+                                {/* Right Side - Amount */}
                                 <View style={{ justifyContent: 'center', alignItems: 'flex-end' }}>
                                     <Text style={styles.recurrenceAmount}>
                                         Kč {Number(recurringTransactions[0].amount).toFixed(2)}
@@ -479,7 +476,7 @@ export default function DebtScreen() {
                     </View>
                 )}
 
-                {/* Recent Transactions Section */}
+                {/* Recent Transactions */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Recent Transactions</Text>
                     {transactions.length === 0 ? (
@@ -506,7 +503,7 @@ export default function DebtScreen() {
                 </View>
             </ScrollView>
 
-            {/* Floating Add Button */}
+            {/* Add button */}
             <TouchableOpacity
                 style={styles.addButton}
                 onPress={() => navigation.navigate('DebtForm', { mode: 'add' })}
@@ -514,6 +511,7 @@ export default function DebtScreen() {
                 <Ionicons name="add" size={36} color="white" />
             </TouchableOpacity>
 
+            {/* Modal PopUp */}
             <Modal
                 transparent={true}
                 visible={showModal}
@@ -528,7 +526,7 @@ export default function DebtScreen() {
                     <TouchableOpacity
                         style={styles.modalContainer}
                         activeOpacity={1}
-                        onPress={() => {}} // Stop propagation inside modal
+                        onPress={() => {}}
                     >
                         {renderModalContent()}
                     </TouchableOpacity>
