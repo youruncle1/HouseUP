@@ -299,7 +299,8 @@ export default StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
         marginBottom: 10,
-        marginTop: 20
+        marginTop: 20,
+        alignSelf:'center',
     }
-    
+
 });
