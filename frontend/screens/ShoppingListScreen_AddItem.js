@@ -19,20 +19,22 @@ import styles from "../styles/ShoppingListStyles";
 import api from "../services/api";
 import { useAppContext } from "../AppContext";
 
+// Main component for the Shopping List adding screen
 export default function ShoppingListScreen_AddItem({ navigation }) {
-    const [inputText, setInputText] = useState("");
-    const [items, setItems] = useState([]);
-    const [tempItem, setTempItem] = useState(null);
-    const [favorites, setFavorites] = useState([]);
-    const [addToDebts, setAddToDebts] = useState(false); // Controls main switch
-    const [debtOption, setDebtOption] = useState(''); // 'single' or 'group'
-    const { currentHousehold, currentUser } = useAppContext();
+    const [inputText, setInputText] = useState("");  // State to manage input text for new items
+    const [items, setItems] = useState([]);          // State to manage manually added items
+    const [tempItem, setTempItem] = useState(null);  // State to manage temporary item for dynamic input rendering
+    const [favorites, setFavorites] = useState([]);  // State to manage favorite items fetched from the backend
+    const [addToDebts, setAddToDebts] = useState(false); // State to toggle whether new added items should be added to debts after purchase
+    const [debtOption, setDebtOption] = useState('');    // State to track the selected debt option ('single' or 'group')
+    const { currentHousehold, currentUser } = useAppContext(); // Context values for the current household and user
 
-    // Fetch favorites when component loads
+    // Fetch favorite items when the component mounts
     useEffect(() => {
         fetchFavorites();
     }, []);
 
+    // Fetch favorite items associated with the current household
     const fetchFavorites = async () => {
         const endpoint = `/shopping-list/${currentHousehold.id}/favouriteShopItems`;
 
@@ -40,7 +42,7 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
             const response = await api.get(endpoint);
             const favoritesWithQuantity = response.data.map(item => ({
                 ...item,
-                quantity: 0,
+                quantity: 0, // default quantity 0
             }));
             setFavorites(favoritesWithQuantity);
         } catch (error) {
@@ -50,7 +52,7 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
 
 
 
-    // Handle input changes and dynamically render a temporary item
+    // Handle text input changes and dynamically render a temporary item
     const handleInputChange = (text) => {
         setInputText(text);
 
@@ -64,7 +66,7 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
     // Finalize the temporary item and add it to the list
     const finalizeItem = () => {
         if (tempItem) {
-            setItems((prevItems) => [{ ...tempItem, quantity: 1 }, ...prevItems]); // Add to the beginning
+            setItems((prevItems) => [{ ...tempItem, quantity: 1 }, ...prevItems]);
             setTempItem(null); // Reset the temporary item
             setInputText(""); // Clear the input field
         }
@@ -104,17 +106,21 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
     };
 
 
-    // Render each finalized item
+    // Render each manually added item
     const renderItem = ({ item, index }) => (
         <View style={styles.additemContainer}>
+            {/* Add (plus) button */}
             <TouchableOpacity
                 style={styles.plusButton}
                 onPress={() => incrementQuantity(index)}
             >
                 <Ionicons name="add" size={16} color="white" />
             </TouchableOpacity>
+            {/* Item name */}
             <Text style={styles.itemName}>{item.name}</Text>
+            {/* Item quantity */}
             <Text style={styles.itemQuantity}>{item.quantity}</Text>
+            {/* Delete (minus) button */}
             <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={() => decrementQuantity(index)}
@@ -127,14 +133,18 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
     // Render favourite shopping list items
     const renderFavorite = ({ item, index }) => (
         <View style={styles.additemContainer}>
+            {/* Add (plus) button */}
             <TouchableOpacity
                 style={styles.plusButton}
                 onPress={() => incrementQuantity(index, "favorites")}
             >
                 <Ionicons name="add" size={16} color="white" />
             </TouchableOpacity>
+            {/* Item name */}
             <Text style={styles.itemName}>{item.name}</Text>
+            {/* Item quantity */}
             <Text style={styles.itemQuantity}>{item.quantity}</Text>
+            {/* Delete (minus) button */}
             <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={() => decrementQuantity(index, "favorites")}
@@ -144,6 +154,7 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
         </View>
     );
 
+    // Add all new items to the shopping list
     const addToShoppingList = async () => {
         const combinedList = [
             ...items, // All typed-in items
@@ -159,7 +170,7 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
             await api.post('/shopping-list', {
                 items: combinedList,
                 householdId: currentHousehold.id,
-                userId: currentUser.id, // Current user's ID
+                userId: currentUser.id,
                 debtOption, // Attach the selected debt option
             });
             console.log('Shopping list updated successfully!');
@@ -178,16 +189,16 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
                 keyExtractor={() => "dummy"}
                 ListHeaderComponent={
                     <>
-                        {/* Input Section */}
+                        {/* Input section */}
                         <TextInput
                             style={styles.input}
                             placeholder="Type in item ..."
                             placeholderTextColor={"rgba(90,47,140,0.62)"}
                             value={inputText}
-                            onChangeText={handleInputChange} // Updates the temporary item
+                            onChangeText={handleInputChange}
                         />
 
-                        {/* Temporary Item */}
+                        {/* Temporary item */}
                         {tempItem && (
                             <View style={styles.additemContainer}>
                                 <TouchableOpacity style={styles.plusButton} onPress={finalizeItem}>
@@ -204,28 +215,28 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
                 }
                 ListFooterComponent={
                     <>
-                        {/* Finalized Items */}
+                        {/* Finalized items */}
                         <View style={styles.addlistContainer}>
                             <FlatList
                                 data={items}
                                 keyExtractor={(item, index) => `item-${index}`}
                                 renderItem={renderItem}
-                                scrollEnabled={false} // Disable scroll for nested FlatList
+                                scrollEnabled={false}
                             />
                         </View>
 
-                        {/* Favorites Items */}
+                        {/* Favorite items */}
                         <View style={styles.favoritesContainer}>
                             <Text style={styles.sectionHeader}>Favorites</Text>
                             <FlatList
                                 data={favorites}
                                 keyExtractor={(item, index) => `favorite-${index}`}
                                 renderItem={renderFavorite}
-                                scrollEnabled={false} // Disable scroll for nested FlatList
+                                scrollEnabled={false}
                             />
                         </View>
 
-                        {/* Add to Debts Switch */}
+                        {/* Add to debts switch */}
                         <View style={[styles.switchContainer, { marginTop: 20 }]}>
                             <Text style={styles.switchLabel}>Add to debts</Text>
                             <Switch
@@ -239,7 +250,7 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
                             />
                         </View>
 
-                        {/* Additional Options for Debt */}
+                        {/* Single/Group options for debt */}
                         {addToDebts && (
                             <View style={styles.debtOptionsContainer}>
                                 <View style={styles.line}></View>

@@ -109,18 +109,24 @@ router.post('/:householdID/favouriteShopItems', async (req, res) => {
 // Mark shopping list item as purchased
 router.put('/:id', async (req, res) => {
     try {
-        const { purchased } = req.body;
+        const { purchased, transactionId } = req.body;
         const itemRef = db.collection('shoppingList').doc(req.params.id);
 
-        await itemRef.update({ purchased });
+        const updateData = { purchased };
+        if (transactionId !== undefined) {
+            updateData.transactionId = transactionId;
+        }
 
-        console.log(`Item with ID ${req.params.id} updated to purchased: ${purchased}`);
+        await itemRef.update(updateData);
+
+        console.log(`Item with ID ${req.params.id} updated:`, updateData);
         res.status(200).json({ message: 'Item updated successfully' });
     } catch (error) {
         console.error('Error updating shopping list item:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 // Delete an item from shopping list
