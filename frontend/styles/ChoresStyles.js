@@ -48,7 +48,7 @@ export default StyleSheet.create({
         paddingHorizontal: 10,
         paddingVertical: 10,
     },
-    profileImage:{width:40, height:40,marginLeft:10},
+    profileImage:{width:40, height:40,marginLeft:10, backgroundColor:'#7292e4', borderRadius: 20},
     choreTextContainer: { flex: 1, marginHorizontal: 10 },
     choreText: { fontSize: 16, color: '#333' },
     scheduledchoreText: {padding:3, fontSize: 16, color: '#333' },
@@ -250,13 +250,6 @@ export default StyleSheet.create({
     },
     toggleOptionSelected: {
         backgroundColor: '#aaa',
-    },
-    profileImage: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        marginHorizontal: 10,
-        backgroundColor:'grey'
     },
     header: {
         backgroundColor: colors.primary,
