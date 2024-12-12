@@ -40,6 +40,7 @@ const Drawer = createDrawerNavigator(); // Drawer navigator instance
 const primaryColor = '#741ded'; // Primary color for active elements
 
 // Create a stack navigator for each tab (if you plan to add more screens in each tab)
+// Author: xzelni06
 function ChoresStack() {
     return (
         // In the same stack navigator as ChoresScreen:
@@ -53,6 +54,7 @@ function ChoresStack() {
 }
 
 // Stack navigator for shopping list-related screens
+// Author: xmilis00
 function ShoppingListStack() {
     return (
         <Stack.Navigator id={ShoppingListStack}>
@@ -65,6 +67,7 @@ function ShoppingListStack() {
 }
 
 // Stack navigator for debt management-related screens
+// Author: xpolia05
 function DebtStack() {
     return (
         <Stack.Navigator id={DebtStack}>
@@ -78,6 +81,7 @@ function DebtStack() {
 }
 
 // Main Tab Navigator
+// Author: xmilis00
 function MainTabs() {
     return (
         <Tab.Navigator
@@ -113,6 +117,7 @@ function MainTabs() {
 }
 
 // Drawer Content
+// Author: xmilis00
 function DrawerContent({ closeDrawer }) {
     const { currentUser, setCurrentUser, currentHousehold, setCurrentHousehold } = useAppContext();
 
@@ -179,6 +184,7 @@ function DrawerContent({ closeDrawer }) {
 }
 
 // Drawer Navigator
+// Author: xmilis00
 export default function App() {
     return (
         <AppProvider>
