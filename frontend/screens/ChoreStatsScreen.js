@@ -1,3 +1,10 @@
+/**
+ * @file ChoreStatsScreen.js
+ * @brief Screen for displaying statistics related to chores completion and history.
+ * @author Robert Zelníček <xzelni06@stud.fit.vutbr.cz>
+ * @date 12.12.2024
+ */
+
 // Required imports for components, hooks, styles, and charting libraries
 import React, { useState, useEffect } from 'react';
 import { View, Text, ActivityIndicator, ScrollView, Dimensions, TouchableOpacity } from 'react-native';

@@ -1,3 +1,10 @@
+/**
+ * @file AddChoreScreen.js
+ * @brief Screen for adding new chores (both scheduled and immediate) to the application.
+ * @author Robert Zelníček <xzelni06@stud.fit.vutbr.cz>
+ * @date 12.12.2024
+ */
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useAppContext } from '../AppContext';

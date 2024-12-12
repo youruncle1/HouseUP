@@ -1,3 +1,10 @@
+/**
+ * @file ChoresScreen.js
+ * @brief Screen for managing and displaying chores in the application.
+ * @author Robert Zelníček <xzelni06@stud.fit.vutbr.cz>
+ * @date 12.12.2024
+ */
+
 // Required imports for React components, hooks, and styles
 import React, { useState, useEffect } from 'react';
 import {

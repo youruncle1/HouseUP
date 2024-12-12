@@ -1,14 +1,25 @@
-// App.js
+/**
+ * @file App.js
+ * @brief Sets up the main navigation structure, including drawer, tab, and stack navigators, 
+ *        and integrates the app-wide context provider for state management.
+ * @author Denis Milistenfer <xmilis00@stud.fit.vutbr.cz>
+ * @author Robert Zelníček <xzelni06@stud.fit.vutbr.cz>
+ * @author Roman Poliačik <xpolia05@stud.fit.vutbr.cz>
+ * @date 12.12.2024
+ */
+
+// Required imports for React components, navigation libraries, and app context
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createDrawerNavigator } from '@react-navigation/drawer';
+import { NavigationContainer } from '@react-navigation/native'; // Container for navigation
+import { createNativeStackNavigator } from '@react-navigation/native-stack'; // Stack navigator
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'; // Tab navigator
+import { createDrawerNavigator } from '@react-navigation/drawer'; // Drawer navigator
 import { View, Text, TouchableOpacity } from 'react-native';
-import { AppProvider, useAppContext } from './AppContext';
+import { AppProvider, useAppContext } from './AppContext'; // Context for app-wide state
 
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import Ionicons from 'react-native-vector-icons/Ionicons'; // Icon library for tab and drawer icons
 
+// Screens for different app functionalities
 import ChoresScreen from './screens/ChoresScreen';
 import AddChoreScreen from './screens/AddChoreScreen';
 import ChoreStatsScreen from './screens/ChoreStatsScreen';
@@ -22,10 +33,11 @@ import TransactionsScreen from './screens/TransactionsScreen';
 
 import styles from './styles/DrawerStyles';
 
-const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
-const Drawer = createDrawerNavigator();
-const primaryColor = '#741ded';
+// Navigation components
+const Stack = createNativeStackNavigator(); // Stack navigator instance
+const Tab = createBottomTabNavigator(); // Tab navigator instance
+const Drawer = createDrawerNavigator(); // Drawer navigator instance
+const primaryColor = '#741ded'; // Primary color for active elements
 
 // Create a stack navigator for each tab (if you plan to add more screens in each tab)
 function ChoresStack() {
@@ -40,6 +52,7 @@ function ChoresStack() {
     );
 }
 
+// Stack navigator for shopping list-related screens
 function ShoppingListStack() {
     return (
         <Stack.Navigator id={ShoppingListStack}>
@@ -51,6 +64,7 @@ function ShoppingListStack() {
     );
 }
 
+// Stack navigator for debt management-related screens
 function DebtStack() {
     return (
         <Stack.Navigator id={DebtStack}>
