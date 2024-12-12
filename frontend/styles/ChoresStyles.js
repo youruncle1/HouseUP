@@ -1,4 +1,9 @@
-// frontend/styles/ChoresStyles.js
+/**
+ * @file ChoresStyles.js
+ * @brief Styles for Chore related screens
+ * @author Robert Zelníček <xzelni06@stud.fit.vutbr.cz>
+ * @date 12.12.2024
+ */
 import {StyleSheet} from 'react-native';
 import colors from '../styles/MainStyles'
 
@@ -281,7 +286,6 @@ export default StyleSheet.create({
         color: 'white',
         marginTop: 5,
     },
-    // Add to ChoresStyles.js
     statsHeader: {
         flexDirection: 'row',
         backgroundColor: '#6200EE',
