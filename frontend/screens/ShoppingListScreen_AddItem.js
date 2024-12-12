@@ -1,3 +1,9 @@
+/**
+ * @file ShoppingListScreen_AddItem.js
+ * @brief ShoppingList's adding screen where user can type in item he wants to add to the list or choose from household's favorite list.
+ * @author Denis Milistenfer <xmilis00@stud.fit.vutbr.cz>
+ * @date 12.12.2024
+ */
 import React, { useState, useEffect } from "react";
 import {
     View,

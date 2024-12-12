@@ -1,3 +1,9 @@
+/**
+ * @file AppContext.js
+ * @brief Provides a global application state management like current user and current household using React Context API.
+ * @author Denis Milistenfer <xmilis00@stud.fit.vutbr.cz>
+ * @date 12.12.2024
+ */
 import React, { createContext, useState, useContext } from 'react';
 
 // Create the Context

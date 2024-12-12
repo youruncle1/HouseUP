@@ -1,3 +1,9 @@
+/**
+ * @file ShoppingListScreen_Settings.js
+ * @brief ShoppingList's settings screen where user can edit his household's favorite items and choose if he wants to see profile pics and checked items in the list.
+ * @author Denis Milistenfer <xmilis00@stud.fit.vutbr.cz>
+ * @date 12.12.2024
+ */
 import React, { useState, useEffect } from "react";
 import {
     View,

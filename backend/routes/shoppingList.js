@@ -1,3 +1,9 @@
+/**
+ * @file shoppingList.js
+ * @brief Defines the backend API routes for managing operations from ShoppingList screen.
+ * @author Denis Milistenfer <xmilis00@stud.fit.vutbr.cz>
+ * @date 12.12.2024
+ */
 const express = require('express');
 const router = express.Router();
 const admin = require('firebase-admin');
@@ -5,7 +11,7 @@ const db = admin.firestore();
 
 // Get all shopping list items for a specific household
 router.get('/', async (req, res) => {
-    const householdId = req.query.householdId; // Get householdId from query parameters
+    const householdId = req.query.householdId;
 
     if (!householdId) {
         return res.status(400).json({ error: 'householdId is required' });
@@ -26,7 +32,7 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Get all favorite shopping items for a specific household
+// Get favorite shopping list items for a specific household
 router.get('/:householdID/favouriteShopItems', async (req, res) => {
     const { householdID } = req.params;
 
@@ -75,8 +81,6 @@ router.post('/', async (req, res) => {
     }
 });
 
-
-
 // Add a new favorite shopping list item for a specific household
 router.post('/:householdID/favouriteShopItems', async (req, res) => {
     const { householdID } = req.params;
@@ -102,7 +106,7 @@ router.post('/:householdID/favouriteShopItems', async (req, res) => {
     }
 });
 
-// Mark an item as purchased
+// Mark shopping list item as purchased
 router.put('/:id', async (req, res) => {
     try {
         const { purchased } = req.body;
@@ -119,7 +123,7 @@ router.put('/:id', async (req, res) => {
 });
 
 
-// Delete an item
+// Delete an item from shopping list
 router.delete('/:id', async (req, res) => {
     console.log(`Received DELETE request for /shopping-list/${req.params.id}`);
     try {
@@ -133,7 +137,7 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// Delete a favorite shopping list item for a specific household
+// Delete a favorite shopping list item
 router.delete('/:householdID/favouriteShopItems/:favoriteID', async (req, res) => {
     const { householdID, favoriteID } = req.params;
 
@@ -210,6 +214,7 @@ router.post('/debts', async (req, res) => {
     }
 });
 
+// Create a transaction for a bought item from shopping list
 router.post('/transactions', async (req, res) => {
     const { householdId, creditor, participants, amount, description } = req.body;
 
@@ -236,9 +241,5 @@ router.post('/transactions', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
-
-
-
 
 module.exports = router;

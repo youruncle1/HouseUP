@@ -1,8 +1,15 @@
+/**
+ * @file ShoppingListStyles.js
+ * @brief Defines all styles used in ShoppingList screen.
+ * @author Denis Milistenfer <xmilis00@stud.fit.vutbr.cz>
+ * @date 12.12.2024
+ */
 import {StyleSheet} from "react-native";
 
 import colors from '../styles/MainStyles';
 
 const styles = StyleSheet.create({
+    // Shopping list main
     container: {
         flex: 1,
         backgroundColor: '#f7f7f7',
@@ -10,15 +17,15 @@ const styles = StyleSheet.create({
     header: {
         backgroundColor: colors.primary,
         padding: 15,
-        flexDirection: 'row', // Align elements horizontally
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between', // Space menu button and center content properly
+        justifyContent: 'space-between',
     },
     headerContent: {
-        position: 'absolute', // Position it relative to the header
-        left: 0, // Reset alignment
-        right: 0, // Take the full width of the header
-        alignItems: 'center', // Center the content horizontally
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        alignItems: 'center',
     },
     householdName: {
         fontSize: 24,
@@ -31,7 +38,7 @@ const styles = StyleSheet.create({
         marginTop: 5,
     },
     menuButton: {
-        padding: 10, // Ensure touchable area for the button
+        padding: 10,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -119,10 +126,10 @@ const styles = StyleSheet.create({
         paddingBottom: 250,
     },
     addlistContainer: {
-        flexDirection: 'column', // Set to 'column' to allow items to stack vertically
-        alignItems: 'stretch',  // Stretch items to take full width
-        borderRadius: 8,        // Retain rounded corners
-        marginVertical: 10,     // Add vertical margin to separate this section
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        borderRadius: 8,
+        marginVertical: 10,
     },
 
     additemContainer: {
@@ -134,7 +141,6 @@ const styles = StyleSheet.create({
         marginHorizontal:18,
         justifyContent: 'space-between',
     },
-
     input: {
         borderColor: colors.primary,
         backgroundColor: '#ededed',
@@ -166,7 +172,7 @@ const styles = StyleSheet.create({
 
     // Favorites
     favoritesContainer: {
-        flexShrink: 1, // Ensures it only takes up as much space as needed
+        flexShrink: 1,
     },
     sectionHeader: {
         fontSize: 18,
@@ -203,7 +209,7 @@ const styles = StyleSheet.create({
     debtOptionsContainer: {
         backgroundColor: "#e0e0e0",
         justifyContent: 'center',
-        borderBottomLeftRadius: 10, // Round the top-left corner
+        borderBottomLeftRadius: 10,
         borderBottomRightRadius: 10,
         marginHorizontal: 15,
         padding: 10,
@@ -211,7 +217,6 @@ const styles = StyleSheet.create({
     },
     debtContainer: {
         backgroundColor: "#ededed",
-        //backgroundColor: "rgba(116,29,237,0.12)",
         flexDirection: 'row',
         justifyContent: 'center',
         borderRadius: 15,
@@ -220,7 +225,6 @@ const styles = StyleSheet.create({
         marginHorizontal: 65,
     },
     debtOption: {
-        //backgroundColor: '#e0e0e0',
         padding: 10,
         borderRadius: 10,
         //marginHorizontal: 5,
@@ -230,7 +234,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     debtOptionSelected: {
-        //backgroundColor: '#741ded', // Highlight the selected option
         backgroundColor: 'white',
     },
 
@@ -238,9 +241,9 @@ const styles = StyleSheet.create({
     // Add button
     addNewItemButton: {
         backgroundColor: colors.primary,
-        borderRadius: 25, // Rounded corners for a rectangle shape
-        paddingVertical: 20, // Vertical padding for height
-        paddingHorizontal: 100, // Horizontal padding for width
+        borderRadius: 25,
+        paddingVertical: 20,
+        paddingHorizontal: 100,
         justifyContent: 'center',
         alignItems: 'center',
         position: 'absolute',
@@ -248,7 +251,7 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
     },
     addNewButtonText: {
-        color: '#fff', // White text color
+        color: '#fff',
         fontSize: 18,
         fontWeight: 'bold',
     },
@@ -284,27 +287,27 @@ const styles = StyleSheet.create({
         marginRight: 10,
     },
     addFavoriteContainer: {
-        position: "relative", // Enables absolute positioning for the button
+        position: "relative",
         marginVertical: 10,
         marginHorizontal: 18,
         borderRadius: 15,
-        backgroundColor: '#e0e0e0', // Matches the input background
+        backgroundColor: '#e0e0e0',
         paddingHorizontal: 10,
-        height: 45, // Adjust to fit the input and button
+        height: 45,
         justifyContent: "center",
     },
     favoriteInput: {
         fontSize: 16,
         marginLeft: 10,
         paddingVertical: 10,
-        paddingRight: 50, // Leave space for the button inside the input field
+        paddingRight: 50,
         flex: 1,
     },
     addFavoriteButton: {
-        position: "absolute", // Places the button inside the input field
-        right: 10, // Adjust to align to the right edge of the container
-        top: "33%", // Vertically centers the button
-        transform: [{ translateY: -12 }], // Adjust to center properly
+        position: "absolute",
+        right: 10,
+        top: "33%",
+        transform: [{ translateY: -12 }],
         borderRadius: 20,
         height: 40,
         width: 40,
