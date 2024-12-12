@@ -19,6 +19,52 @@ function getCurrentWeekIdentifier() {
     return `${year}-W${week}`;
 }
 
+async function generateDueChoresForAllHouseholds() {
+    const now = new Date();
+    const today = admin.firestore.Timestamp.fromDate(now);
+
+    try {
+        const householdsSnapshot = await db.collection('households').get();
+
+        for (const householdDoc of householdsSnapshot.docs) {
+            const householdId = householdDoc.id;
+            const defaultChoresRef = db.collection('households').doc(householdId).collection('defaultChores');
+
+            const defaultChoresSnapshot = await defaultChoresRef.get();
+
+            for (const choreDoc of defaultChoresSnapshot.docs) {
+                const { name, frequencyDays, lastGenerated } = choreDoc.data();
+                const lastGeneratedDate = lastGenerated?.toDate() || new Date(0);
+
+                // Calculate the difference in days since the last generation
+                const diffDays = Math.floor((now - lastGeneratedDate) / (1000 * 60 * 60 * 24));
+
+                if (diffDays >= frequencyDays) {
+                    // Generate a new chore
+                    const newChore = {
+                        name,
+                        householdId,
+                        assignedTo: null, // Or assign to a specific user
+                        completed: false,
+                        timestamp: today,
+                        weekIdentifier: getCurrentWeekIdentifier(),
+                    };
+
+                    await db.collection('chores').add(newChore);
+
+                    // Update lastGenerated field
+                    await choreDoc.ref.update({
+                        lastGenerated: today,
+                    });
+
+                    console.log(`Generated new chore: ${name} for household ${householdId}`);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error generating scheduled chores:', error);
+    }
+}
 // Helper function: updateUserStats
 async function updateUserStats(householdId, userId, isTakeover, weekIdentifier) {
     const today = new Date();
@@ -210,5 +256,6 @@ router.get('/userStats', async (req, res) => {
 });
 
 module.exports = {
-    router
+    router,
+    generateDueChoresForAllHouseholds,
 };
