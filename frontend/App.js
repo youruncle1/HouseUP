@@ -103,9 +103,9 @@ function DrawerContent({ closeDrawer }) {
     const { currentUser, setCurrentUser, currentHousehold, setCurrentHousehold } = useAppContext();
 
     const users = [
-        { id: 'user1@gmail.com', name: 'Denis' },
-        { id: 'user2@gmail.com', name: 'Roman' },
-        { id: 'user3@gmail.com', name: 'Robo' },
+        { id: 'user1@gmail.com', name: 'Denis', profileImage: 'https://upload.wikimedia.org/wikipedia/commons/4/43/Paul_Circle.png'},
+        { id: 'user2@gmail.com', name: 'Roman', profileImage: 'https://images.rawpixel.com/image_png_800/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDIyLTA4L2pvYjEwMzQtZWxlbWVudC0wNi0zOTcucG5n.png'},
+        { id: 'user3@gmail.com', name: 'Robo',  profileImage: 'https://www.pngfind.com/pngs/m/488-4887957_facebook-teerasej-profile-ball-circle-circular-profile-picture.png'},
     ];
 
     const households = [

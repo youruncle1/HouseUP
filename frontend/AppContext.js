@@ -5,7 +5,11 @@ const AppContext = createContext();
 
 // Create a Provider component
 export function AppProvider({ children }) {
-    const [currentUser, setCurrentUser] = useState({ id: 'user2@gmail.com', name: 'Roman' });
+    const [currentUser, setCurrentUser] = useState({
+        id: 'user2@gmail.com',
+        name: 'Roman',
+        profileImage: 'https://images.rawpixel.com/image_png_800/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDIyLTA4L2pvYjEwMzQtZWxlbWVudC0wNi0zOTcucG5n.png',
+    });
     const [currentHousehold, setCurrentHousehold] = useState({ id: 'household1', name: 'Household1' });
     const [showUserImages, setShowUserImages] = useState(true);
     const [hideCheckedItems, setHideCheckedItems] = useState(false);
@@ -32,4 +36,3 @@ export function AppProvider({ children }) {
 export function useAppContext() {
     return useContext(AppContext);
 }
-

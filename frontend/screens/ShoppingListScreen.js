@@ -73,7 +73,7 @@ export default function ShoppingListScreen({ navigation }) {
 
     // Mark/Unmark item as purchased in shopping list (and create a debt)
     const togglePurchaseItem = async (id, currentState, item) => {
-        if ((item?.createdBy !== currentUser.id) && !currentState && (item?.debtOption === 'single' || item?.debtOption === 'group')) {
+        if ( !currentState && ((item?.createdBy !== currentUser.id && item?.debtOption === 'single') || item?.debtOption === 'group')) {
             // Save the current item and show the modal
             setCurrentItem(item);
             setIsModalVisible(true);
@@ -87,7 +87,7 @@ export default function ShoppingListScreen({ navigation }) {
             }
         }
     };
-
+    // Create 1-1 debt for a purchased item
     const handleSingleDebtSubmit = async () => {
         if (priceInput && !isNaN(priceInput)) {
             const parsedPrice = parseFloat(priceInput);
@@ -130,10 +130,61 @@ export default function ShoppingListScreen({ navigation }) {
         }
     };
 
+    // Create 1-N debt for a purchased item
     const handleGroupDebtSubmit = async () => {
-        // Implement group debt submission logic here
-        console.log('Group debt logic is not yet implemented.');
+        if (priceInput && !isNaN(priceInput)) {
+            const parsedPrice = parseFloat(priceInput);
+
+            try {
+                // Step 1: Fetch all users from the household
+                const usersResponse = await api.get(`/users?householdId=${currentHousehold.id}`);
+                const householdUsers = usersResponse.data;
+
+                // Calculate individual contribution
+                const individualDebtAmount = parsedPrice / householdUsers.length;
+
+                // Exclude the purchaser from the debt contributors
+                const contributors = householdUsers.filter(user => user.id !== currentUser.id);
+
+                // Step 2: Create a transaction
+                const transactionResponse = await api.post('/shopping-list/transactions', {
+                    householdId: currentHousehold.id,
+                    creditor: currentUser.id, // Current user is the purchaser
+                    participants: contributors.map(user => user.id), // All users except the purchaser
+                    amount: parsedPrice,
+                    description: `Debt for purchasing ${currentItem.name}`,
+                });
+
+                const transactionId = transactionResponse.data.id;
+
+                // Step 3: Create debts for each contributor
+                for (const contributor of contributors) {
+                    await api.post('/shopping-list/debts', {
+                        amount: individualDebtAmount,
+                        creditor: currentUser.id, // Current user (the purchaser) is the creditor
+                        debtor: contributor.id, // The user contributing to the debt
+                        householdId: currentHousehold.id,
+                        relatedTransactionId: transactionId,
+                        isSettled: false,
+                    });
+                }
+
+                console.log('Group debts and transaction created successfully!');
+
+                // Step 4: Mark the item as purchased
+                await api.put(`/shopping-list/${currentItem.id}`, { purchased: true });
+
+                // Reset state and refresh items
+                setIsModalVisible(false);
+                setPriceInput('');
+                setCurrentItem(null);
+                fetchItems();
+            } catch (error) {
+                console.error('Error creating group debts or transaction:', error);
+            }
+        }
     };
+
 
     // Delete item from shopping list
     const deleteItem = (id) => {
@@ -211,6 +262,13 @@ export default function ShoppingListScreen({ navigation }) {
                     <Text style={styles.householdName}>{currentHousehold?.name || 'No Household Selected'}</Text>
                     <Text style={styles.itemCounter}>{items.filter((item) => item.purchased).length}/{items.length} items are bought</Text>
                 </View>
+                {/* Current User Profile Image */}
+                <Image
+                    source={{
+                        uri: currentUser?.profileImage,
+                    }}
+                    style={styles.profileImage}
+                />
             </View>
 
             {/* Shopping List Title + Settings Button */}
