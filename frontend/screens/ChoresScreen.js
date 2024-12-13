@@ -316,6 +316,7 @@ export default function ChoresScreen({ navigation }) {
                         No tasks have been completed this week yet.
                     </Text>
                 )}
+                <View style={{height:100}}></View>
             </ScrollView>
 
             {/* Add Button */}
