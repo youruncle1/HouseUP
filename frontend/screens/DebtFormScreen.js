@@ -1,12 +1,9 @@
-// screens/DebtFormScreen.js
-
 import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
     TextInput,
     TouchableOpacity,
-    Alert,
     StyleSheet,
     KeyboardAvoidingView,
     Platform,
@@ -39,6 +36,10 @@ export default function DebtFormScreen({ navigation, route }) {
     const [editingTransaction, setEditingTransaction] = useState(null);
 
     const [showCreditorModal, setShowCreditorModal] = useState(false);
+
+    const [showShoppingModal, setShowShoppingModal] = useState(false);
+    const [groupItems, setGroupItems] = useState([]);
+    const [selectedGroupItems, setSelectedGroupItems] = useState([]);
 
     const intervalOptions = [
         { label: 'Only Once', value: 'once' },
@@ -76,6 +77,12 @@ export default function DebtFormScreen({ navigation, route }) {
             }
         }
     }, [mode, route.params]);
+
+    useEffect(() => {
+        if (selectedGroupItems.length > 0 && isRecurring) {
+            setIsRecurring(false);
+        }
+    }, [selectedGroupItems, isRecurring]);
 
     const fetchHouseholdMembers = async () => {
         if (!currentHousehold?.id) return;
@@ -143,12 +150,25 @@ export default function DebtFormScreen({ navigation, route }) {
                 transactionData.startDate = null;
             }
 
+            let response;
             if (mode === 'add') {
-                await api.post('/transactions', transactionData);
+                response = await api.post('/transactions', transactionData);
             } else if (mode === 'edit') {
                 const { transaction } = route.params;
-                await api.put(`/transactions/${transaction.id}`, transactionData);
+                response = await api.put(`/transactions/${transaction.id}`, transactionData);
             }
+
+            // Link selected shopping items to the transaction
+            if (selectedGroupItems.length > 0 && response && response.data && response.data.id) {
+                const transactionId = response.data.id;
+                for (const itemId of selectedGroupItems) {
+                    await api.put(`/shopping-list/${itemId}`, {
+                        purchased: true,
+                        transactionId: transactionId
+                    });
+                }
+            }
+
             navigation.goBack();
         } catch (error) {
             console.error(`Error ${mode === 'add' ? 'adding' : 'editing'} transaction:`, error);
@@ -157,7 +177,7 @@ export default function DebtFormScreen({ navigation, route }) {
 
     const getUserById = (userId) => householdMembers.find(m => m.id === userId);
     const getUserName = (userId) => getUserById(userId)?.name || userId;
-    const getUserImage = (userId) => getUserById(userId)?.profileImage || 'https://via.placeholder.com/40';
+    const getUserImage = (userId) => getUserById(userId)?.profileImage || 'https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg';
 
     const openCreditorModal = () => {
         setShowCreditorModal(true);
@@ -183,6 +203,60 @@ export default function DebtFormScreen({ navigation, route }) {
     const closeDateModal = () => setShowDateModal(false);
     const openIntervalModal = () => setShowIntervalModal(true);
     const closeIntervalModal = () => setShowIntervalModal(false);
+    const selectInterval = (interval) => {
+        setRecurrenceInterval(interval);
+        setShowIntervalModal(false);
+    };
+
+    const openShoppingModal = async () => {
+        setShowShoppingModal(true);
+        try {
+            const res = await api.get(`/shopping-list?householdId=${currentHousehold.id}`);
+            const items = res.data;
+            const groupEligible = items.filter(item => item.debtOption === 'group' && item.purchased === false);
+            setGroupItems(groupEligible);
+        } catch (err) {
+            console.error('Error fetching shopping items:', err);
+        }
+    };
+
+    const toggleShoppingItem = (id) => {
+        setSelectedGroupItems(prev => {
+            if (prev.includes(id)) {
+                return prev.filter(itemId => itemId !== id);
+            } else {
+                return [...prev, id];
+            }
+        });
+    };
+
+    const renderShoppingItem = ({ item }) => {
+        const isChecked = selectedGroupItems.includes(item.id);
+        return (
+            <TouchableOpacity style={styles.shoppingItemRow} onPress={() => toggleShoppingItem(item.id)}>
+                <View style={styles.shoppingItemText}>
+                    <Text style={styles.shoppingItemName}>{item.name}</Text>
+                    <Text style={styles.shoppingItemQuantity}>Qty: {item.quantity}</Text>
+                </View>
+                <View style={[styles.checkbox, isChecked && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+                    {isChecked && <Ionicons name="checkmark" size={18} color="white" />}
+                </View>
+            </TouchableOpacity>
+        );
+    };
+
+    const saveShoppingSelection = () => {
+        const selectedNames = groupItems
+            .filter(item => selectedGroupItems.includes(item.id))
+            .map(item => item.name);
+
+        if (selectedNames.length > 0) {
+            const namesString = selectedNames.join(', ');
+            setDescription(namesString);
+        }
+
+        setShowShoppingModal(false);
+    };
 
     return (
         <KeyboardAvoidingView
@@ -201,17 +275,23 @@ export default function DebtFormScreen({ navigation, route }) {
                         onChangeText={setDescription}
                     />
 
-                    {/* Creditor and Amount on the same row */}
+                    {/* Top Row: Creditor, Shopping Items Button, Amount */}
                     <View style={styles.topRow}>
                         <View style={styles.leftColumn}>
-                            <Text style={[styles.label, { textAlign: 'center', marginTop: 25 }]}>Who's paying?</Text>
+                            <Text style={[styles.label, { textAlign: 'center', marginTop: 0}]}>Who's paying?</Text>
                             <TouchableOpacity style={styles.creditorButton} onPress={openCreditorModal}>
                                 <Image source={{ uri: getUserImage(creditor) }} style={styles.creditorButtonImage}/>
                                 <Text style={styles.creditorButtonName}>{getUserName(creditor)}</Text>
+                                <Ionicons name="settings-outline" size={12} color="#888" style={styles.creditorSettingsIcon} />
                             </TouchableOpacity>
                         </View>
-
                         <View style={styles.rightColumn}>
+                            {mode === 'add' && (
+                                <TouchableOpacity style={styles.shoppingButton} onPress={openShoppingModal}>
+                                    <Ionicons name="cart-outline" size={24} color={colors.primary} style={{ marginRight: 10 }} />
+                                    <Text style={styles.shoppingButtonText}>Shared Shopping Items</Text>
+                                </TouchableOpacity>
+                            )}
                             <Text style={styles.label}>Amount</Text>
                             <View style={styles.amountInputContainer}>
                                 <TextInput
@@ -252,7 +332,7 @@ export default function DebtFormScreen({ navigation, route }) {
                     })}
 
                     {/* Recurring Section */}
-                    {(mode === 'add' || (mode === 'edit' && editingTransaction && editingTransaction.isRecurring)) && (
+                    {selectedGroupItems.length === 0 && (mode === 'add' || (mode === 'edit' && editingTransaction && editingTransaction.isRecurring)) && (
                         <View style={styles.recurringContainer}>
                             <View style={styles.recurringRow}>
                                 <Text style={[styles.label, { marginTop: 0 }]}>Scheduled payment?</Text>
@@ -261,7 +341,11 @@ export default function DebtFormScreen({ navigation, route }) {
                                         styles.recurringCheckbox,
                                         isRecurring && { backgroundColor: colors.primary, borderColor: colors.primary }
                                     ]}
-                                    onPress={() => setIsRecurring(!isRecurring)}
+                                    onPress={() => {
+                                        if (selectedGroupItems.length === 0) {
+                                            setIsRecurring(!isRecurring);
+                                        }
+                                    }}
                                 >
                                     {isRecurring && <Ionicons name="checkmark" size={18} color="white" />}
                                 </TouchableOpacity>
@@ -312,7 +396,6 @@ export default function DebtFormScreen({ navigation, route }) {
                     <TouchableOpacity
                         style={styles.modalContainer}
                         activeOpacity={1}
-                        onPress={() => {}}
                     >
                         <Text style={styles.modalTitle}>Select Creditor</Text>
                         <FlatList
@@ -344,7 +427,6 @@ export default function DebtFormScreen({ navigation, route }) {
                     <TouchableOpacity
                         style={styles.modalContainer}
                         activeOpacity={1}
-                        onPress={() => {}}
                     >
                         <Text style={styles.modalTitle}>Select Start Date</Text>
                         <DateTimePicker
@@ -382,17 +464,13 @@ export default function DebtFormScreen({ navigation, route }) {
                     <TouchableOpacity
                         style={styles.modalContainer}
                         activeOpacity={1}
-                        onPress={() => {}}
                     >
                         <Text style={styles.modalTitle}>Select Interval</Text>
                         {intervalOptions.map(option => (
                             <TouchableOpacity
                                 key={option.value}
                                 style={styles.intervalOption}
-                                onPress={() => {
-                                    setRecurrenceInterval(option.value);
-                                    closeIntervalModal();
-                                }}
+                                onPress={() => selectInterval(option.value)}
                             >
                                 <Text style={styles.intervalOptionText}>{option.label}</Text>
                                 {recurrenceInterval === option.value && (
@@ -408,6 +486,36 @@ export default function DebtFormScreen({ navigation, route }) {
                         </View>
                     </TouchableOpacity>
                 </TouchableOpacity>
+            </Modal>
+
+            {/* Shopping Modal */}
+            <Modal
+                visible={showShoppingModal}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowShoppingModal(false)}
+            >
+                <View style={styles.modalBackground}>
+                    <TouchableOpacity
+                        style={[styles.modalContainer, {maxHeight:'70%'}]}
+                        activeOpacity={1}
+                    >
+                        <Text style={styles.modalTitle}>Select Shared Shopping Items</Text>
+                        {groupItems.length === 0 ? (
+                            <Text style={{textAlign:'center', marginVertical:10}}>No shared shopping items found.</Text>
+                        ) : (
+                            <FlatList
+                                data={groupItems}
+                                keyExtractor={item => item.id}
+                                renderItem={renderShoppingItem}
+                                style={{width:'100%',marginVertical:10}}
+                            />
+                        )}
+                        <TouchableOpacity style={styles.modalCloseButton} onPress={saveShoppingSelection}>
+                            <Text style={styles.modalCloseButtonText}>Save</Text>
+                        </TouchableOpacity>
+                    </TouchableOpacity>
+                </View>
             </Modal>
         </KeyboardAvoidingView>
     );
@@ -436,40 +544,52 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     input: {
-        borderColor: '#ddd',
+        borderColor: colors.primary,
         borderWidth: 1,
         paddingHorizontal: 15,
         paddingVertical: 10,
         borderRadius: 5,
         fontSize: 24,
         color: colors.text,
+        marginBottom: 15,
     },
     topRow: {
         flexDirection: 'row',
-        alignItems: 'flex-end',
-        marginBottom: 20,
-        marginTop: -10,
-        //justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        paddingBottom: 10,
+        paddingTop: 10,
+        borderBottomWidth: 1,
+        borderTopWidth: 1,
+        borderColor: '#ddd',
+        marginBottom: 10,
     },
     leftColumn: {
-        alignItems: 'flex-start',
+        alignItems: 'center',
         flex: 1,
         marginRight: 10,
+        //borderRightWidth: 1,
+        //borderColor: '#ddd',
     },
     creditorButton: {
-        marginLeft: 8,
+        marginTop: 0,
         borderWidth: 1,
         borderColor: '#ddd',
         borderRadius: 10,
-        padding: 5,
+        padding: 10,
         alignItems: 'center',
-        width: 90,
+        width: 100,
         backgroundColor: '#f9f9f9',
+    },
+    creditorSettingsIcon: {
+        position: 'absolute',
+        top: 5,
+        right: 5,
     },
     creditorButtonImage: {
         width: 60,
         height: 60,
         borderRadius: 30,
+        backgroundColor: "#7292e4",
     },
     creditorButtonName: {
         fontSize: 14,
@@ -480,7 +600,18 @@ const styles = StyleSheet.create({
     },
     rightColumn: {
         flex: 2,
-        justifyContent: 'flex-start',
+    },
+    shoppingButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f2f2f2',
+        padding: 10,
+        borderRadius: 5,
+    },
+    shoppingButtonText: {
+        fontSize: 16,
+        color: colors.primary,
+        fontWeight: 'bold',
     },
     amountInputContainer: {
         position: 'relative',
@@ -492,7 +623,7 @@ const styles = StyleSheet.create({
         fontSize: 24,
         color: '#333',
         paddingHorizontal: 15,
-        paddingVertical: 15,
+        paddingVertical: 13,
         paddingRight: 40,
     },
     amountKc: {
@@ -515,6 +646,7 @@ const styles = StyleSheet.create({
         height: 40,
         borderRadius: 20,
         marginRight: 10,
+        backgroundColor: "#7292e4",
     },
     participantTextContainer: {
         flex: 1,
@@ -625,6 +757,7 @@ const styles = StyleSheet.create({
         width: 60,
         height: 60,
         borderRadius: 30,
+        backgroundColor: "#7292e4",
     },
     creditorChoiceName: {
         fontSize: 14,
@@ -669,5 +802,27 @@ const styles = StyleSheet.create({
     intervalOptionText: {
         fontSize: 16,
         color: '#333',
+    },
+    shoppingItemRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+        borderBottomColor: '#eee',
+        borderBottomWidth: 1,
+        justifyContent: 'space-between',
+    },
+    shoppingItemText: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    shoppingItemName: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#333',
+    },
+    shoppingItemQuantity: {
+        fontSize: 14,
+        color: '#666',
+        marginTop: 2,
     },
 });

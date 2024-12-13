@@ -650,6 +650,7 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         borderWidth: 2,
         borderColor: 'white',
+        backgroundColor: "#7292e4",
     },
     debtorContainer: {
         flex: 1,
@@ -779,6 +780,7 @@ const styles = StyleSheet.create({
         height: 20,
         borderRadius: 10,
         marginRight: 2,
+        backgroundColor: "#7292e4",
     },
     modalBackground: {
         flex: 1,

@@ -9,7 +9,6 @@ import {
     StyleSheet,
     ActivityIndicator,
     Modal,
-    Image,
     SectionList
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
