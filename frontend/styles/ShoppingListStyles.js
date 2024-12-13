@@ -390,6 +390,25 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
 
+    emptyListContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        margin: 60,
+    },
+
+    emptyListText1: {
+        fontSize: 22,
+        color: "#7c7a7a", // Adjust based on your design
+        textAlign: 'center',
+    },
+    emptyListText2: {
+        fontSize: 16,
+        marginTop: 15,
+        color: "#7c7a7a", // Adjust based on your design
+        textAlign: 'center',
+    },
+
 });
 
 export default styles;

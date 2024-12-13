@@ -243,6 +243,12 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
                                 keyExtractor={(item, index) => `favorite-${index}`}
                                 renderItem={renderFavorite}
                                 scrollEnabled={false}
+                                ListEmptyComponent={
+                                    <View style={styles.emptyListContainer}>
+                                        <Text style={styles.emptyListText1}>There are no favorite items :(</Text>
+                                        <Text style={styles.emptyListText2}>You can add new in Settings!</Text>
+                                    </View>
+                                }
                             />
                         </View>
 

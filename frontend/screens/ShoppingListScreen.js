@@ -330,6 +330,12 @@ export default function ShoppingListScreen({ navigation }) {
                     keyExtractor={(item) => item.id}
                     renderItem={renderItem}
                     showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={
+                        <View style={styles.emptyListContainer}>
+                            <Text style={styles.emptyListText1}>Shopping list is empty :(</Text>
+                            <Text style={styles.emptyListText2}>Start adding items by tapping  the button below!</Text>
+                        </View>
+                    }
                     ListFooterComponent={<View style={{ height: 280 }} />}
                 />
             </View>

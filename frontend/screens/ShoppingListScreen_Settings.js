@@ -111,6 +111,12 @@ export default function ShoppingListScreen_Settings() {
                                 keyExtractor={(item, index) => `favorite-${index}`}
                                 renderItem={renderFavorite}
                                 scrollEnabled={false} // Prevent scrolling inside the favorites list
+                                ListEmptyComponent={
+                                    <View style={styles.emptyListContainer}>
+                                        <Text style={styles.emptyListText1}>There are no favorite items :(</Text>
+                                        <Text style={styles.emptyListText2}>Add new by tapping button above!</Text>
+                                    </View>
+                                }
                             />
                         </View>
 
