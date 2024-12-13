@@ -95,22 +95,23 @@ export default function ChoresScreen({ navigation }) {
             
             // Sort chores by timestamp (ascending for pending, descending for completed)
             userChoresList = userChoresList.sort((a, b) => {
-                const aTime = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : new Date(a.timestamp).getTime();
-                const bTime = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : new Date(b.timestamp).getTime();
-                return aTime - bTime;
+                const aTime = a.timestamp ? new Date(a.timestamp).getTime() : 0; // Parse formatted string
+                const bTime = b.timestamp ? new Date(b.timestamp).getTime() : 0; // Parse formatted string
+                return aTime - bTime; // Ascending order
             });
 
             otherChoresList = otherChoresList.sort((a, b) => {
-                const aTime = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : new Date(a.timestamp).getTime();
-                const bTime = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : new Date(b.timestamp).getTime();
-                return aTime - bTime;
+                const aTime = a.timestamp ? new Date(a.timestamp).getTime() : 0; // Parse formatted string
+                const bTime = b.timestamp ? new Date(b.timestamp).getTime() : 0; // Parse formatted string
+                return aTime - bTime; // Ascending order
             });
 
             completedList = completedList.sort((a, b) => {
-                const aTime = a.completedTime?.toDate ? a.completedTime.toDate().getTime() : 0;
-                const bTime = b.completedTime?.toDate ? b.completedTime.toDate().getTime() : 0;
-                return bTime - aTime;
+                const aTime = a.completedTime ? new Date(a.completedTime).getTime() : 0; // Parse formatted string
+                const bTime = b.completedTime ? new Date(b.completedTime).getTime() : 0; // Parse formatted string
+                return bTime - aTime; // Descending order
             });
+
 
             setUserChores(userChoresList);
             setOtherUsersChores(otherChoresList);
