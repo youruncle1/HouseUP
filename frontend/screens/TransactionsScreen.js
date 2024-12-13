@@ -1,3 +1,9 @@
+/**
+ * @file DebtScheduledScreen.js
+ * @brief  Screen to list all household Transactions. Can view detailed info, edit or delete.
+ * @author Roman Poliačik <xpolia05@stud.fit.vutbr.cz>
+ * @date 13.12.2024
+ */
 import React, { useState, useEffect } from 'react';
 import {
     View,
@@ -18,16 +24,20 @@ import colors from '../styles/MainStyles';
 
 export default function TransactionsScreen({ navigation }) {
     const { currentHousehold } = useAppContext();
+
+    // states for transactions and household members
     const [transactions, setTransactions] = useState([]);
     const [householdMembers, setHouseholdMembers] = useState([]);
     const [loading, setLoading] = useState(false);
 
+    // modal state, selected transaction
     const [showModal, setShowModal] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
     const [selectedItemIsRecurring, setSelectedItemIsRecurring] = useState(false);
     const [canEdit, setCanEdit] = useState(true);
     const [cannotEditReason, setCannotEditReason] = useState('');
 
+    // refetch data when focused
     useFocusEffect(
         React.useCallback(() => {
             if (currentHousehold?.id) {
@@ -36,6 +46,7 @@ export default function TransactionsScreen({ navigation }) {
         }, [currentHousehold])
     );
 
+    // fetch all transactions and household members
     const fetchData = async () => {
         try {
             setLoading(true);
@@ -48,7 +59,7 @@ export default function TransactionsScreen({ navigation }) {
             // sort by date x descending
             allTransactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-            // filter out recurring transactions
+            // filter out recurring
             const normalTransactions = allTransactions.filter(t => !t.isRecurring);
 
             setTransactions(normalTransactions);
@@ -71,6 +82,7 @@ export default function TransactionsScreen({ navigation }) {
         return member?.profileImage || 'https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg';
     };
 
+    // close modal and reset states
     const closeModal = () => {
         setShowModal(false);
         setSelectedItem(null);
@@ -79,6 +91,7 @@ export default function TransactionsScreen({ navigation }) {
         setCannotEditReason('');
     };
 
+    // edit selected transaction if allowed
     const handleEdit = () => {
         if (!canEdit) {
             Alert.alert('Cannot Edit', cannotEditReason || 'This transaction cannot be edited.');
@@ -89,6 +102,7 @@ export default function TransactionsScreen({ navigation }) {
         closeModal();
     };
 
+    // delete selected transaction
     const handleDelete = async () => {
         Alert.alert(
             'Delete',
@@ -113,6 +127,7 @@ export default function TransactionsScreen({ navigation }) {
         );
     };
 
+    // check if transaction can be edited using api
     const fetchCanEdit = async (transactionId) => {
         try {
             const res = await api.get(`/transactions/${transactionId}/can-edit`);
@@ -221,6 +236,7 @@ export default function TransactionsScreen({ navigation }) {
         );
     };
 
+    // when tapping a transaction
     const onTransactionPress = async (item) => {
         setSelectedItem(item);
         setSelectedItemIsRecurring(false);
@@ -263,13 +279,14 @@ export default function TransactionsScreen({ navigation }) {
         return monthB - monthA; //months second
     });
 
-    //section array month-year
+    // create sections month-year
     for (let ym of sortedYearMonths) {
         const [y, m] = ym.split('-').map(Number);
         const title = `${monthNames[m]} ${y}`;
         sections.push({ title, data: groups[ym] });
     }
 
+    // render trans item
     const renderTransactionItem = ({ item }) => {
         const dateObj = new Date(item.timestamp);
         const dateStr = dateObj.toLocaleDateString();
@@ -353,7 +370,7 @@ export default function TransactionsScreen({ navigation }) {
                     <TouchableOpacity
                         style={styles.modalContainer}
                         activeOpacity={1}
-                        onPress={() => {}} // prevent closing on inside tap
+                        onPress={() => {}} // no closing on tap
                     >
                         {renderModalContent()}
                     </TouchableOpacity>

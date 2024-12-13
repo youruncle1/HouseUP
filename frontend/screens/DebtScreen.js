@@ -1,5 +1,9 @@
-// screens/DebtScreen.js
-
+/**
+ * @file DebtScreen.js
+ * @brief main Debts screen - shows debts between members, upcoming scheduled payments, and recent transactions.
+ * @author Roman Poliačik <xpolia05@stud.fit.vutbr.cz>
+ * @date 13.12.2024
+ */
 import React, { useState, useEffect } from 'react';
 import {
     View,
@@ -22,17 +26,19 @@ import colors from '../styles/MainStyles';
 export default function DebtScreen() {
     const navigation = useNavigation();
     const { currentHousehold, currentUser } = useAppContext();
+
+    // states for data and modals
     const [householdMembers, setHouseholdMembers] = useState([]);
     const [debts, setDebts] = useState([]);
     const [transactions, setTransactions] = useState([]);
     const [recurringTransactions, setRecurringTransactions] = useState([]);
-
     const [showModal, setShowModal] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
     const [selectedItemIsRecurring, setSelectedItemIsRecurring] = useState(false);
     const [canEdit, setCanEdit] = useState(true);
     const [cannotEditReason, setCannotEditReason] = useState('');
 
+    // refetch data when focusing screen
     useFocusEffect(
         React.useCallback(() => {
             if (currentHousehold?.id) {
@@ -41,14 +47,15 @@ export default function DebtScreen() {
         }, [currentHousehold])
     );
 
+    // fetch members, debts, transactions, recurring/scheduled transactions
     const fetchData = async () => {
         try {
-            // Fetch users
+            // fetch users in household
             const usersRes = await api.get(`/users?householdId=${currentHousehold.id}`);
             const members = usersRes.data;
             setHouseholdMembers(members);
 
-            // Fetch debts and join together/aggregate
+            // fetch debts and aggregate them + create mapping debtor -> creditor
             const debtsRes = await api.get(`/debts?householdId=${currentHousehold.id}`);
             const rawDebts = debtsRes.data;
 
@@ -67,17 +74,17 @@ export default function DebtScreen() {
             });
             setDebts(aggregatedDebts);
 
-            // Fetch transactions
+            // fetch transactions (normal)
             const transRes = await api.get(`/transactions?householdId=${currentHousehold.id}`);
             let allTransactions = transRes.data;
             allTransactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-            // Filter out recurring
+            // filter out recurring
             const normalTransactions = allTransactions.filter(t => !t.isRecurring);
 
             setTransactions(normalTransactions);
 
-            // Fetch recurring transactions
+            // fetch recurring transactions and sort by next payment date
             const recurringRes = await api.get(`/transactions/recurring?householdId=${currentHousehold.id}`);
             const allRecurring = recurringRes.data;
             const filteredRecurring = allRecurring
@@ -106,6 +113,7 @@ export default function DebtScreen() {
         return member?.profileImage || 'https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg';
     };
 
+    // close info modal and reset states
     const closeModal = () => {
         setShowModal(false);
         setSelectedItem(null);
@@ -114,6 +122,7 @@ export default function DebtScreen() {
         setCannotEditReason('');
     };
 
+    // handle edit button press(if edit allowed)
     const handleEdit = () => {
         if (!canEdit) {
             Alert.alert('Cannot Edit', cannotEditReason || 'This transaction cannot be edited.');
@@ -123,6 +132,7 @@ export default function DebtScreen() {
         closeModal();
     };
 
+    // handle delete button press
     const handleDelete = async () => {
         Alert.alert(
             'Delete',
@@ -147,6 +157,7 @@ export default function DebtScreen() {
         );
     };
 
+    // check if transaction can be edited using api
     const fetchCanEdit = async (transactionId) => {
         try {
             const res = await api.get(`/transactions/${transactionId}/can-edit`);
@@ -164,6 +175,7 @@ export default function DebtScreen() {
         }
     };
 
+    // open modal for a normal transaction
     const onTransactionPress = async (item) => {
         setSelectedItem(item);
         setSelectedItemIsRecurring(false);
@@ -180,6 +192,7 @@ export default function DebtScreen() {
         setShowModal(true);
     };
 
+    // open modal for a recurring transaction
     const onRecurringPress = (item) => {
         setSelectedItem(item);
         setSelectedItemIsRecurring(true);
@@ -188,6 +201,7 @@ export default function DebtScreen() {
         setShowModal(true);
     };
 
+    // render details, edit, delete buttons
     const renderModalContent = () => {
         if (!selectedItem) return null;
         const creditorName = getUserName(selectedItem.creditor);
@@ -231,7 +245,7 @@ export default function DebtScreen() {
                     </View>
                 ) : null}
 
-                {/* recurring-specific info */}
+                {/* recurring info */}
                 {selectedItemIsRecurring && selectedItem.recurrenceInterval && (
                     <View style={styles.modalInfoRow}>
                         <Text style={styles.modalInfoLabel}>Interval:</Text>
@@ -259,7 +273,7 @@ export default function DebtScreen() {
 
                 <View style={[styles.modalDivider, { marginTop: 20 }]} />
 
-                {/* Buttons */}
+                {/* buttons */}
                 <View style={styles.modalButtonsContainer}>
                     {(!selectedItem.isSettlement || selectedItemIsRecurring) && (
                         <TouchableOpacity
@@ -298,6 +312,7 @@ export default function DebtScreen() {
         );
     };
 
+    // handle debt settle
     const settleDebt = (debtItem) => {
         Alert.alert(
             'Settle Debt',
@@ -324,6 +339,7 @@ export default function DebtScreen() {
         );
     };
 
+    // render transaction item (recent)
     const renderTransactionItem = ({ item }) => {
         const dateObj = new Date(item.timestamp);
         const dateStr = dateObj.toLocaleDateString();

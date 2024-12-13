@@ -1,35 +1,39 @@
-// backend/routes/transactions.js
-
+/**
+ * @file transactions.js
+ * @brief backend route; creation, fetching, updating, deletion,scheduling of transactions and their related debts.
+ * @author Roman Poliačik <xpolia05@stud.fit.vutbr.cz>
+ * @date 13.12.2024
+ */
 const express = require('express');
 const router = express.Router();
 const admin = require('firebase-admin');
 const db = admin.firestore();
 const moment = require('moment');
 
-// GET /transactions?householdId=...
-// Returns all transactions for the given household
+// get all transactions for a given household
 router.get('/', async (req, res) => {
-    console.log('Received GET request for /transactions');
+    // get household id from query
     const householdId = req.query.householdId;
     if (!householdId) {
         return res.status(400).json({ error: 'householdId is required' });
     }
 
     try {
+        // get matching transactions
         let transactionsRef = db.collection('transactions').where('householdId', '==', householdId);
         const snapshot = await transactionsRef.get();
         const transactions = [];
         snapshot.forEach((doc) => {
             const data = doc.data();
+            // convert timestamp
             if (data.timestamp && data.timestamp.toDate) {
                 data.timestamp = data.timestamp.toDate().toISOString();
             }
             transactions.push({ id: doc.id, ...data });
         });
 
-        // Sort by timestamp descending on server side if needed
+        // sort newest first
         transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
         console.log(`Sending ${transactions.length} transactions for householdId ${householdId}`);
         res.status(200).json(transactions);
     } catch (error) {
@@ -38,21 +42,22 @@ router.get('/', async (req, res) => {
     }
 });
 
-// POST /transactions
+// create a new transaction (normal or recurring)
 // { creditor, participants, amount, description, householdId, isRecurring, startDate, recurrenceInterval }
 router.post('/', async (req, res) => {
     console.log('Received POST request for /transactions with data:', req.body);
     const { creditor, participants, amount, description, householdId, isRecurring, recurrenceInterval, startDate } = req.body;
 
+    // basic validations
     if (!creditor || !participants || !Array.isArray(participants) || participants.length === 0 || !householdId) {
         return res.status(400).json({ error: 'Missing required fields: creditor, participants, householdId' });
     }
-
     const amountValue = parseFloat(amount);
     if (isNaN(amountValue) || amountValue <= 0) {
         return res.status(400).json({ error: 'Invalid amount' });
     }
 
+    // set up transaction data
     const transactionData = {
         creditor,
         participants,
@@ -67,15 +72,13 @@ router.post('/', async (req, res) => {
     let parsedStartDate = null;
 
     if (isRecurring) {
-        // Validate recurrenceInterval
-        const allowedIntervals = ['once', 'weekly', 'biweekly', 'monthly', 'semiannually'];
-        if (!allowedIntervals.includes(recurrenceInterval)) {
-            return res.status(400).json({ error: 'Invalid recurrenceInterval' });
+        if (!startDate) {
+            return res.status(400).json({ error: 'startDate is required for recurring transactions' });
         }
 
         parsedStartDate = new Date(startDate);
         if (isNaN(parsedStartDate.getTime())) {
-            return res.status(400).json({ error: 'Invalid startDate' });
+            return res.status(400).json({ error: 'Invalid startDate format' });
         }
 
         // Set recurring fields
@@ -93,13 +96,10 @@ router.post('/', async (req, res) => {
 
     const transactionRef = db.collection('transactions').doc();
     try {
-        // If not recurring, just create the transaction and the debts now
-        // If recurring, create the template first, then handle immediate spawn if needed
         const batch = db.batch();
 
-        // If not recurring, create debts immediately
+        // if normal transaction, create debts now
         if (!isRecurringFlag) {
-            // Normal transaction: create debts now
             const share = amountValue / participants.length;
             participants.forEach(p => {
                 if (p !== creditor) {
@@ -118,13 +118,12 @@ router.post('/', async (req, res) => {
             });
         }
 
-        // Set the transaction
+        // save the transaction
         batch.set(transactionRef, transactionData);
         await batch.commit();
+        console.log(`Transaction created with ID: ${transactionRef.id}`);
 
-        console.log(`Transaction created with ID: ${transactionRef.id} ${isRecurringFlag ? '(recurring template)' : '(normal)'}`);
-
-        // If recurring and startDate <= today, spawn the immediate normal instance
+        // if recurring and startDate <= today, spawn/create instance
         if (isRecurringFlag) {
             const now = new Date();
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Start of today's day
@@ -132,7 +131,7 @@ router.post('/', async (req, res) => {
             const startDateTime = new Date(parsedStartDate.getFullYear(), parsedStartDate.getMonth(), parsedStartDate.getDate()).getTime();
 
             if (startDateTime <= startOfDayTime) {
-                // Create an immediate instance (normal transaction) from this template
+                // create normal instance now
                 await spawnRecurringInstance({
                     creditor,
                     participants,
@@ -141,12 +140,12 @@ router.post('/', async (req, res) => {
                     householdId
                 });
 
-                // Update the nextPaymentDate of the recurring template if interval is not 'once'
+                // updates nextPaymentDate
                 if (recurrenceInterval === 'once') {
-                    // Once only, delete the original recurring placeholder since we spawned the instance
+                    // once only => remove template
                     await transactionRef.delete();
                 } else {
-                    // Move nextPaymentDate forward
+                    // move nextPaymentDate forward
                     const updatedDate = getNextPaymentDate(recurrenceInterval, parsedStartDate);
                     await transactionRef.update({
                         nextPaymentDate: admin.firestore.Timestamp.fromDate(updatedDate)
@@ -154,7 +153,6 @@ router.post('/', async (req, res) => {
                 }
             }
         }
-
         res.status(201).json({ id: transactionRef.id, ...transactionData });
     } catch (error) {
         console.error('Error adding transaction and debts:', error);
@@ -162,8 +160,9 @@ router.post('/', async (req, res) => {
     }
 });
 
-// Helper function to spawn a normal transaction instance from a recurring template
+// helper to spawn normal instance from recurring template
 async function spawnRecurringInstance({ creditor, participants, amount, description, householdId }) {
+    // create normal transaction and debts
     const newTransRef = db.collection('transactions').doc();
     const newTransData = {
         creditor,
@@ -182,7 +181,6 @@ async function spawnRecurringInstance({ creditor, participants, amount, descript
     const batch = db.batch();
     batch.set(newTransRef, newTransData);
 
-    // Create debts for this new normal instance
     const share = amount / participants.length;
     participants.forEach(p => {
         if (p !== creditor) {
@@ -204,7 +202,7 @@ async function spawnRecurringInstance({ creditor, participants, amount, descript
     console.log(`Spawned immediate instance transaction ${newTransRef.id} from recurring template.`);
 }
 
-// Helper function to get next payment date based on interval
+// helper to get nextPaymentDate
 function getNextPaymentDate(interval, currentDate) {
     const m = moment(currentDate);
     switch (interval) {
@@ -217,27 +215,28 @@ function getNextPaymentDate(interval, currentDate) {
         case 'semiannually':
             return m.add(6, 'months').toDate();
         default:
-            // once or unknown
+            // once
             return null;
     }
 }
 
-// UPDATE transaction
+// update an existing transaction
 router.put('/:id', async (req, res) => {
     console.log(`Received PUT request for /transactions/${req.params.id} with data:`, req.body);
     const transactionId = req.params.id;
     const { creditor, participants, amount, description, householdId, isRecurring, recurrenceInterval, startDate } = req.body;
 
+    // basic validation
     if (!creditor || !participants || !Array.isArray(participants) || participants.length === 0 || !householdId) {
         return res.status(400).json({ error: 'Missing required fields: creditor, participants, householdId' });
     }
-
     const amountValue = parseFloat(amount);
     if (isNaN(amountValue) || amountValue <= 0) {
         return res.status(400).json({ error: 'Invalid amount' });
     }
 
     try {
+        // get existing transaction
         const transactionRef = db.collection('transactions').doc(transactionId);
         const transDoc = await transactionRef.get();
         if (!transDoc.exists) {
@@ -245,12 +244,12 @@ router.put('/:id', async (req, res) => {
         }
 
         const existingData = transDoc.data();
-        // Still disallow editing if it's a settlement transaction
+        // cannot edit settlement (check)
         if (existingData.isSettlement === true) {
             return res.status(400).json({ error: 'Cannot edit a settlement transaction' });
         }
 
-        // Prepare updated common fields
+        // prepare updated data
         const updatedTransactionData = {
             creditor,
             participants,
@@ -264,32 +263,27 @@ router.put('/:id', async (req, res) => {
         const batch = db.batch();
 
         if (isRecurring) {
-            // It's a recurring template
-            // Update recurring fields
+            // if recurring, update data and don't change debts
             updatedTransactionData.isRecurring = true;
             updatedTransactionData.recurrenceInterval = recurrenceInterval || null;
             updatedTransactionData.startDate = startDate ? admin.firestore.Timestamp.fromDate(new Date(startDate)) : null;
-            // For simplicity, set nextPaymentDate = startDate whenever editing recurring
-            // Or if you prefer, leave nextPaymentDate as is if not provided:
             updatedTransactionData.nextPaymentDate = updatedTransactionData.startDate || null;
 
-            // IMPORTANT: Do not create or delete any debts for recurring templates
-            // Just update the transaction
             batch.update(transactionRef, updatedTransactionData);
 
         } else {
-            // Non-recurring transaction
+            // normal transaction => delete old debts and create new
             updatedTransactionData.isRecurring = false;
             updatedTransactionData.recurrenceInterval = null;
             updatedTransactionData.startDate = null;
             updatedTransactionData.nextPaymentDate = null;
 
-            // Delete old debts
+            // delete old debts
             const debtsRef = db.collection('debts').where('relatedTransactionId', '==', transactionId);
             const debtsSnapshot = await debtsRef.get();
             debtsSnapshot.forEach(d => batch.delete(d.ref));
 
-            // Create new debts based on participants
+            // create new debts based on participants
             const share = amountValue / participants.length;
             participants.forEach(p => {
                 if (p !== creditor) {
@@ -307,7 +301,7 @@ router.put('/:id', async (req, res) => {
                 }
             });
 
-            // Update the transaction
+            // update the transaction
             batch.update(transactionRef, updatedTransactionData);
         }
 
@@ -320,7 +314,7 @@ router.put('/:id', async (req, res) => {
     }
 });
 
-// can-edit returns true if editing is allowed(no prior full or partial settlements happened).
+// can-edit returns true if editing is allowed(false if full or partial settlements happened).
 router.get('/:id/can-edit', async (req, res) => {
     const transactionId = req.params.id;
 
@@ -333,7 +327,7 @@ router.get('/:id/can-edit', async (req, res) => {
 
         const transactionData = transDoc.data();
 
-        // If this is a settlement transaction, no editing allowed.
+        // settlement transaction => no editing allowed.
         if (transactionData.isSettlement === true) {
             return res.status(200).json({ canEdit: false, reason: 'This is a settlement transaction and cannot be edited.' });
         }
@@ -343,20 +337,20 @@ router.get('/:id/can-edit', async (req, res) => {
             return res.status(200).json({ canEdit: false, reason: 'Transaction data incomplete, cannot edit.' });
         }
 
-        // Count how many participants are non-creditors
+        // count non-creditor participants => match debts in database to this amount
         const nonCreditorCount = participants.filter(p => p !== creditor).length;
 
-        // Fetch current debts for this transaction
+        // fetch current debts for this transaction
         const debtsRef = db.collection('debts').where('relatedTransactionId', '==', transactionId);
         const debtsSnapshot = await debtsRef.get();
         const currentDebtsCount = debtsSnapshot.size;
 
-        // If fewer debts than non-creditors, some debts got settled => partial settlement => no editing
+        // if less debts than non-creditors, some debts got settled => partial/full settlement => no editing
         if (currentDebtsCount < nonCreditorCount) {
-            return res.status(200).json({ canEdit: false, reason: 'Some debts have been partially or fully settled, cannot edit this transaction.' });
+            return res.status(200).json({ canEdit: false, reason: 'Some debts from this Transaction have been settled, cannot edit.' });
         }
 
-        // If we reach here, editing is allowed
+        // editing is allowed
         return res.status(200).json({ canEdit: true });
     } catch (error) {
         console.error('Error checking can-edit:', error);
@@ -364,6 +358,7 @@ router.get('/:id/can-edit', async (req, res) => {
     }
 });
 
+// get all recurring/scheduled transactions for a household
 router.get('/recurring', async (req, res) => {
     console.log('Received GET request for /transactions/recurring');
     const householdId = req.query.householdId;
@@ -393,18 +388,20 @@ router.get('/recurring', async (req, res) => {
     }
 });
 
+// process due recurring transactions: USED BY CRON (AUTOCHECK ON MIDNIGHT)
 async function processDueRecurringTransactions() {
     const now = moment().startOf('day');
     const transRef = db.collection('transactions').where('isRecurring', '==', true);
     const snapshot = await transRef.get();
     const batch = db.batch();
 
+    // for each recurring transaction, check if nextPaymentDate <= moment(current), create transaction if yes
     for (const doc of snapshot.docs) {
         const data = doc.data();
         const nextPaymentDate = data.nextPaymentDate ? data.nextPaymentDate.toDate() : null;
 
         if (nextPaymentDate && moment(nextPaymentDate).isSameOrBefore(now)) {
-            // Create a new normal transaction instance
+            // normal transaction
             const newTransactionRef = db.collection('transactions').doc();
             const newTransactionData = {
                 creditor: data.creditor,
@@ -414,11 +411,11 @@ async function processDueRecurringTransactions() {
                 householdId: data.householdId,
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 isSettlement: false,
-                isRecurring: false // normal transaction
+                isRecurring: false // false to filter normal from recurring
             };
             batch.set(newTransactionRef, newTransactionData);
 
-            // Create debts for the new instance
+            // create debts for the new transaction
             const share = data.amount / data.participants.length;
             data.participants.forEach(p => {
                 if (p !== data.creditor) {
@@ -436,7 +433,7 @@ async function processDueRecurringTransactions() {
                 }
             });
 
-            // Determine nextPaymentDate
+            // determine nextPaymentDate
             let newNextPaymentDate;
             switch (data.recurrenceInterval) {
                 case 'weekly':
@@ -453,7 +450,7 @@ async function processDueRecurringTransactions() {
                     break;
                 case 'once':
                 default:
-                    // once or unknown - no further recurrences
+                    // once
                     newNextPaymentDate = null;
                     break;
             }
@@ -461,12 +458,12 @@ async function processDueRecurringTransactions() {
             const originalTransRef = db.collection('transactions').doc(doc.id);
 
             if (newNextPaymentDate) {
-                // For recurring intervals other than 'once', update nextPaymentDate
+                // update template for next time
                 batch.update(originalTransRef, {
                     nextPaymentDate: admin.firestore.Timestamp.fromDate(newNextPaymentDate.toDate())
                 });
             } else {
-                // For 'once', delete the original recurring placeholder
+                // if 'once', delete recurring transaction
                 batch.delete(originalTransRef);
             }
         }
@@ -476,8 +473,7 @@ async function processDueRecurringTransactions() {
 }
 
 
-// DELETE /transactions/:id
-// Deleting a transaction means also deleting related debts
+// delete transaction and related debts
 router.delete('/:id', async (req, res) => {
     console.log(`Received DELETE request for /transactions/${req.params.id}`);
     const transactionId = req.params.id;
@@ -489,14 +485,14 @@ router.delete('/:id', async (req, res) => {
             return res.status(404).json({ error: 'Transaction not found' });
         }
 
-        // Find all debts related to this transaction
+        // find all debts linked to this transaction
         const debtsRef = db.collection('debts').where('relatedTransactionId', '==', transactionId);
         const debtsSnapshot = await debtsRef.get();
 
         const batch = db.batch();
-        // Delete the transaction
+        // delete transaction
         batch.delete(transactionRef);
-        // Delete all related debts
+        // delete all related debts
         debtsSnapshot.forEach(d => batch.delete(d.ref));
 
         await batch.commit();

@@ -1,5 +1,9 @@
-// frontend/screens/DebtScheduledScreen.js
-
+/**
+ * @file DebtScheduledScreen.js
+ * @brief  Screen for all upcoming recurring (scheduled) payments. Can view detailed info, edit or delete.
+ * @author Roman Poliačik <xpolia05@stud.fit.vutbr.cz>
+ * @date 13.12.2024
+ */
 import React, { useState, useEffect } from 'react';
 import {
     View,
@@ -19,14 +23,16 @@ import colors from '../styles/MainStyles';
 
 export default function DebtScheduledScreen({ navigation }) {
     const { currentHousehold } = useAppContext();
+
+    // states for recurring + modal
     const [recurringTransactions, setRecurringTransactions] = useState([]);
     const [householdMembers, setHouseholdMembers] = useState([]);
     const [loading, setLoading] = useState(false);
-
     const [showModal, setShowModal] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
     const [selectedItemIsRecurring, setSelectedItemIsRecurring] = useState(false);
 
+    // refetch data when screen is focused
     useFocusEffect(
         React.useCallback(() => {
             if (currentHousehold?.id) {
@@ -35,15 +41,16 @@ export default function DebtScheduledScreen({ navigation }) {
         }, [currentHousehold])
     );
 
+    // fetch recurring payments and household members
     const fetchData = async () => {
         try {
             setLoading(true);
-            // fetch users
+            // fetch members
             const usersRes = await api.get(`/users?householdId=${currentHousehold.id}`);
             const members = usersRes.data;
             setHouseholdMembers(members);
 
-            // fetch recurring transactions
+            // fetch recurring
             const recurringRes = await api.get(`/transactions/recurring?householdId=${currentHousehold.id}`);
             const allRecurring = recurringRes.data;
 
@@ -70,14 +77,16 @@ export default function DebtScheduledScreen({ navigation }) {
         return member ? member.name : userId;
     };
 
+    // close modal and reset
     const closeModal = () => {
         setShowModal(false);
         setSelectedItem(null);
         setSelectedItemIsRecurring(false);
     };
 
+    // handle edit
     const handleEdit = () => {
-        // Recurring placeholders are always editable
+        // recurring are always editable
         navigation.navigate('DebtForm', { mode: 'edit', transaction: selectedItem });
         closeModal();
     };
@@ -106,6 +115,7 @@ export default function DebtScheduledScreen({ navigation }) {
         );
     };
 
+    // render modal for recurring
     const renderModalContent = () => {
         if (!selectedItem) return null;
         const creditorName = getUserName(selectedItem.creditor);
@@ -201,23 +211,25 @@ export default function DebtScheduledScreen({ navigation }) {
         groups[yearMonth].push(rt);
     }
 
-    // sort year-month descending by date
+    // sort year-month by date ascending
     const sortedYearMonths = Object.keys(groups).sort((a,b) => {
         const [yearA, monthA] = a.split('-').map(Number);
         const [yearB, monthB] = b.split('-').map(Number);
 
-        // comp years ASCENDING (furthest - lowest)
+        // comp years ASCENDING (highest - lowest)
         if (yearA !== yearB) return yearA - yearB;
 
         return monthA - monthB;
     });
 
+    // create monthly sections for SectionList
     for (let ym of sortedYearMonths) {
         const [y, m] = ym.split('-').map(Number);
         const title = `${monthNames[m]} ${y}`;
         sections.push({ title, data: groups[ym] });
     }
 
+    // render each recurring item row
     const renderRecurringItem = ({ item }) => {
         const dateStr = item.nextPaymentDateObj.toLocaleDateString();
         const description = item.description || "Not described";
@@ -248,6 +260,7 @@ export default function DebtScheduledScreen({ navigation }) {
         );
     };
 
+    // render section header (year-month)
     const renderSectionHeader = ({ section: { title } }) => (
         <Text style={styles.monthHeader}>{title}</Text>
     );
@@ -276,7 +289,7 @@ export default function DebtScheduledScreen({ navigation }) {
                 visible={showModal}
                 animationType="fade"
                 useNativeDriver={true}
-                onRequestClose={closeModal} // Android
+                onRequestClose={closeModal} // android scheniegans
             >
                 <TouchableOpacity
                     style={styles.modalBackground}

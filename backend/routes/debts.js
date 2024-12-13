@@ -1,12 +1,15 @@
-// backend/routes/debts.js
-
+/**
+ * @file debts.js
+ * @brief backend route; lists all debts in a household, settles debts between members, removes debts.
+ * @author Roman Poliačik <xpolia05@stud.fit.vutbr.cz>
+ * @date 13.12.2024
+ */
 const express = require('express');
 const router = express.Router();
 const admin = require('firebase-admin');
 const db = admin.firestore();
 
-// GET /debts?householdId=...
-// Returns all one-on-one debts for the given household
+// returns all one-on-one debts for the given household
 router.get('/', async (req, res) => {
     console.log('Received GET request for /debts');
     const householdId = req.query.householdId;
@@ -34,9 +37,9 @@ router.get('/', async (req, res) => {
     }
 });
 
-// POST /debts/settle
-// Body: { debtor, creditor, householdId }
-// This will remove all debts from debtor->creditor, sum them up, and create a settlement transaction.
+// settle all debts from one user to another within a household
+// remove all debts from debtor->creditor, get sum, create a settlement transaction.
+// { debtor, creditor, householdId }
 router.post('/settle', async (req, res) => {
     console.log('Received POST request for /debts/settle with data:', req.body);
     const { debtor, creditor, householdId } = req.body;
@@ -46,7 +49,7 @@ router.post('/settle', async (req, res) => {
     }
 
     try {
-        // Find all debts from debtor to creditor in this household
+        // find all debts where debtor owes creditor
         const debtsRef = db.collection('debts')
             .where('debtor', '==', debtor)
             .where('creditor', '==', creditor)
@@ -57,6 +60,7 @@ router.post('/settle', async (req, res) => {
             return res.status(404).json({ error: 'No debts found between these users in this household' });
         }
 
+        // sum up and remove debts
         let totalAmount = 0;
         const batch = db.batch();
         debtsSnapshot.forEach((doc) => {
@@ -65,11 +69,10 @@ router.post('/settle', async (req, res) => {
             batch.delete(doc.ref); // remove the debt
         });
 
-        // Create a new settlement transaction
+        // create a settlement (isSettlement) transaction
         const transactionRef = db.collection('transactions').doc();
         const transactionData = {
-            // The debtor now acts as "creditor" in this record, because they are paying the old creditor.
-            creditor: debtor,
+            creditor: debtor,  // debtor now pays off the old creditor
             participants: [creditor],
             amount: totalAmount,
             description: "Debt Settled",
@@ -89,36 +92,7 @@ router.post('/settle', async (req, res) => {
     }
 });
 
-// POST /debts/settle-one
-// Body: { debtId } - settle a single debt by marking isSettled = true
-// or deleting the doc if fully paid.
-router.post('/settle-one', async (req, res) => {
-    console.log(`Received POST request for /debts/settle-one with data:`, req.body);
-    const { debtId } = req.body;
-
-    if (!debtId) {
-        return res.status(400).json({ error: 'debtId is required' });
-    }
-
-    try {
-        const debtRef = db.collection('debts').doc(debtId);
-        const debtDoc = await debtRef.get();
-        if (!debtDoc.exists) {
-            return res.status(404).json({ error: 'Debt not found' });
-        }
-
-        // Mark it as settled
-        await debtRef.update({ isSettled: true });
-        console.log(`Debt with ID ${debtId} settled`);
-        res.status(200).json({ message: 'Debt settled successfully' });
-    } catch (error) {
-        console.error('Error settling debt:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// DELETE /debts/:id
-// Deletes a single debt document.
+// delete a single debt document
 router.delete('/:id', async (req, res) => {
     console.log(`Received DELETE request for /debts/${req.params.id}`);
     try {

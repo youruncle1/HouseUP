@@ -1,3 +1,10 @@
+/**
+ * @file DebtFormScreen.js
+ * @brief Screen for creating or editing transactions/scheduled payments. Integrates shared shopping list items.
+ * @author Roman Poliačik <xpolia05@stud.fit.vutbr.cz>
+ * @date 13.12.2024
+ */
+
 import React, { useState, useEffect } from 'react';
 import {
     View,
@@ -22,12 +29,14 @@ export default function DebtFormScreen({ navigation, route }) {
     const { mode } = route.params;
     const { currentHousehold, currentUser } = useAppContext();
 
+    // basic transaction states
     const [householdMembers, setHouseholdMembers] = useState([]);
     const [creditor, setCreditor] = useState(currentUser.id);
     const [selectedParticipants, setSelectedParticipants] = useState([currentUser.id]);
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
 
+    // scheduled/recurring transaction states + scheduler modal
     const [isRecurring, setIsRecurring] = useState(false);
     const [startDate, setStartDate] = useState(new Date());
     const [showDateModal, setShowDateModal] = useState(false);
@@ -35,12 +44,15 @@ export default function DebtFormScreen({ navigation, route }) {
     const [recurrenceInterval, setRecurrenceInterval] = useState('once');
     const [editingTransaction, setEditingTransaction] = useState(null);
 
+    // creditor pick modal
     const [showCreditorModal, setShowCreditorModal] = useState(false);
 
+    // shopping items pick modal
     const [showShoppingModal, setShowShoppingModal] = useState(false);
     const [groupItems, setGroupItems] = useState([]);
     const [selectedGroupItems, setSelectedGroupItems] = useState([]);
 
+    // recurring intervals options
     const intervalOptions = [
         { label: 'Only Once', value: 'once' },
         { label: 'Weekly', value: 'weekly' },
@@ -49,6 +61,7 @@ export default function DebtFormScreen({ navigation, route }) {
         { label: 'Half a Year', value: 'semiannually' }
     ];
 
+    // sets screen title based on mode
     useEffect(() => {
         navigation.setOptions({
             title: mode === 'add' ? 'Add Transaction' : 'Edit Transaction',
@@ -59,6 +72,7 @@ export default function DebtFormScreen({ navigation, route }) {
         fetchHouseholdMembers();
     }, [currentHousehold]);
 
+    // for editing, prefills form from trans data
     useEffect(() => {
         if (mode === 'edit') {
             const { transaction } = route.params;
@@ -78,12 +92,14 @@ export default function DebtFormScreen({ navigation, route }) {
         }
     }, [mode, route.params]);
 
+    // disables recurring/scheduled settings if paying for shopping items
     useEffect(() => {
         if (selectedGroupItems.length > 0 && isRecurring) {
             setIsRecurring(false);
         }
     }, [selectedGroupItems, isRecurring]);
 
+    // fetch household members from api
     const fetchHouseholdMembers = async () => {
         if (!currentHousehold?.id) return;
         try {
@@ -110,21 +126,26 @@ export default function DebtFormScreen({ navigation, route }) {
         });
     };
 
+    // calculate per person share for display (based on amount)
     const numberOfParticipants = selectedParticipants.length;
     const totalAmount = parseFloat(amount) || 0;
     const perPersonShare = numberOfParticipants > 0 ? totalAmount / numberOfParticipants : 0;
 
+    // handle submitting form to create/edit transaction
     const handleSubmit = async () => {
+        // no participants check
         if (selectedParticipants.length === 0) {
             alert('Please select at least one participant.');
             return;
         }
 
+        // only creditor is participant
         if (selectedParticipants.length === 1 && selectedParticipants[0] === creditor) {
             alert('At least one participant other than the creditor is required.');
             return;
         }
 
+        // invalid amount
         const amountValue = parseFloat(amount);
         if (isNaN(amountValue) || amountValue <= 0) {
             alert('Please enter a valid amount greater than zero.');
@@ -151,6 +172,7 @@ export default function DebtFormScreen({ navigation, route }) {
             }
 
             let response;
+            // if adding; post, if editing; put
             if (mode === 'add') {
                 response = await api.post('/transactions', transactionData);
             } else if (mode === 'edit') {
@@ -158,7 +180,7 @@ export default function DebtFormScreen({ navigation, route }) {
                 response = await api.put(`/transactions/${transaction.id}`, transactionData);
             }
 
-            // Link selected shopping items to the transaction
+            // if any shop items were selected, update purchased & link transactionId on shoppingItem
             if (selectedGroupItems.length > 0 && response && response.data && response.data.id) {
                 const transactionId = response.data.id;
                 for (const itemId of selectedGroupItems) {
@@ -175,22 +197,23 @@ export default function DebtFormScreen({ navigation, route }) {
         }
     };
 
+    // user data (id, name, pic)
     const getUserById = (userId) => householdMembers.find(m => m.id === userId);
     const getUserName = (userId) => getUserById(userId)?.name || userId;
     const getUserImage = (userId) => getUserById(userId)?.profileImage || 'https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg';
 
+    // open modal to choose creditor
     const openCreditorModal = () => {
         setShowCreditorModal(true);
     };
 
+    // set chosen creditor
     const selectCreditor = (userId) => {
         setCreditor(userId);
         setShowCreditorModal(false);
-        if (!selectedParticipants.includes(userId)) {
-            setSelectedParticipants(prev => [...prev, userId]);
-        }
     };
 
+    // render all householdMembers in creditor
     const renderCreditorItem = ({ item }) => (
         <TouchableOpacity style={styles.creditorChoiceItem} onPress={() => selectCreditor(item.id)}>
             <Image source={{ uri: item.profileImage || 'https://via.placeholder.com/60' }} style={styles.creditorChoiceImage}/>
@@ -198,16 +221,7 @@ export default function DebtFormScreen({ navigation, route }) {
         </TouchableOpacity>
     );
 
-    // Modal handlers
-    const openDateModal = () => setShowDateModal(true);
-    const closeDateModal = () => setShowDateModal(false);
-    const openIntervalModal = () => setShowIntervalModal(true);
-    const closeIntervalModal = () => setShowIntervalModal(false);
-    const selectInterval = (interval) => {
-        setRecurrenceInterval(interval);
-        setShowIntervalModal(false);
-    };
-
+    // modal to select shared shopping items (items w/ debtOption: "group")
     const openShoppingModal = async () => {
         setShowShoppingModal(true);
         try {
@@ -220,6 +234,7 @@ export default function DebtFormScreen({ navigation, route }) {
         }
     };
 
+    // toggle items in shared item selection
     const toggleShoppingItem = (id) => {
         setSelectedGroupItems(prev => {
             if (prev.includes(id)) {
@@ -230,6 +245,7 @@ export default function DebtFormScreen({ navigation, route }) {
         });
     };
 
+    // render shopping item in modal
     const renderShoppingItem = ({ item }) => {
         const isChecked = selectedGroupItems.includes(item.id);
         return (
@@ -245,6 +261,7 @@ export default function DebtFormScreen({ navigation, route }) {
         );
     };
 
+    // save selected items + add names to desc(purpose field)
     const saveShoppingSelection = () => {
         const selectedNames = groupItems
             .filter(item => selectedGroupItems.includes(item.id))
@@ -256,6 +273,17 @@ export default function DebtFormScreen({ navigation, route }) {
         }
 
         setShowShoppingModal(false);
+    };
+
+
+    // scheduled/recurring modal handlers; date/interval
+    const openDateModal = () => setShowDateModal(true);
+    const closeDateModal = () => setShowDateModal(false);
+    const openIntervalModal = () => setShowIntervalModal(true);
+    const closeIntervalModal = () => setShowIntervalModal(false);
+    const selectInterval = (interval) => {
+        setRecurrenceInterval(interval);
+        setShowIntervalModal(false);
     };
 
     return (
@@ -275,7 +303,7 @@ export default function DebtFormScreen({ navigation, route }) {
                         onChangeText={setDescription}
                     />
 
-                    {/* Top Row: Creditor, Shopping Items Button, Amount */}
+                    {/* Top Row - Creditor, Shopping Items Button, Amount */}
                     <View style={styles.topRow}>
                         <View style={styles.leftColumn}>
                             <Text style={[styles.label, { textAlign: 'center', marginTop: 0}]}>Who's paying?</Text>
@@ -375,6 +403,7 @@ export default function DebtFormScreen({ navigation, route }) {
                         </View>
                     )}
 
+                    {/* Add/save button */}
                     <TouchableOpacity style={styles.addButton} onPress={handleSubmit}>
                         <Text style={styles.addButtonText}>{mode === 'add' ? 'Add Transaction' : 'Save Changes'}</Text>
                     </TouchableOpacity>
