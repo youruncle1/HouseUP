@@ -129,7 +129,7 @@ export default function ShoppingListScreen({ navigation }) {
                     creditor: currentUser.id,
                     participants: [currentItem.createdBy],
                     amount: parsedPrice,
-                    description: `Debt for purchasing ${currentItem.name}`,
+                    description: `Purchasing ${currentItem.name}`,
                 });
 
                 const transactionId = transactionResponse.data.id;
@@ -184,7 +184,7 @@ export default function ShoppingListScreen({ navigation }) {
                     creditor: currentUser.id,
                     participants: contributors,
                     amount: parsedPrice,
-                    description: `Debt for purchasing ${currentItem.name}`,
+                    description: `Purchasing ${currentItem.name}`,
                 });
 
                 const transactionId = transactionResponse.data.id;
@@ -253,13 +253,17 @@ export default function ShoppingListScreen({ navigation }) {
         <View style={styles.itemContainer}>
             {/* Checkbox */}
             <TouchableOpacity
-                style={[
-                    styles.checkbox,
-                    { backgroundColor: item.purchased ? colors.primary : 'transparent' }
-                ]}
+                style={styles.buttonHitbox}
                 onPress={() => togglePurchaseItem(item.id, item.purchased, item)}
             >
-                {item.purchased && <Ionicons name="checkmark" size={18} color="white" />}
+                <View
+                    style={[
+                        styles.checkbox,
+                        { backgroundColor: item.purchased ? colors.primary : 'transparent' }
+                    ]}
+                >
+                    {item.purchased && <Ionicons name="checkmark" size={18} color="white" />}
+                </View>
             </TouchableOpacity>
 
             {/* Item */}

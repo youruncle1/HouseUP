@@ -39,7 +39,7 @@ const Tab = createBottomTabNavigator(); // Tab navigator instance
 const Drawer = createDrawerNavigator(); // Drawer navigator instance
 const primaryColor = '#741ded'; // Primary color for active elements
 
-// Create a stack navigator for each tab (if you plan to add more screens in each tab)
+// Stack navigator for chores-related screens
 // Author: xzelni06
 function ChoresStack() {
     return (
@@ -59,7 +59,6 @@ function ShoppingListStack() {
     return (
         <Stack.Navigator id={ShoppingListStack}>
             <Stack.Screen name="ShoppingListHome" component={ShoppingListScreen} options={{ title: 'Shopping List' }} />
-            {/* Additional screens for Shopping List can go here */}
             <Stack.Screen name="AddItem" component={ShoppingListScreen_AddItem} options={{ title: 'Add Item' }} />
             <Stack.Screen name="ShoppingListSettings" component={ShoppingListScreen_Settings} options={{ title: 'Settings' }} />
         </Stack.Navigator>
@@ -80,7 +79,7 @@ function DebtStack() {
     );
 }
 
-// Main Tab Navigator
+// Tab navigator for main Sections
 // Author: xmilis00
 function MainTabs() {
     return (
@@ -116,9 +115,9 @@ function MainTabs() {
     );
 }
 
-// Drawer Content
+// Drawer content for user and household switching
 // Author: xmilis00
-function DrawerContent({ closeDrawer }) {
+function DrawerContent() {
     const { currentUser, setCurrentUser, currentHousehold, setCurrentHousehold } = useAppContext();
 
     const users = [
@@ -134,6 +133,7 @@ function DrawerContent({ closeDrawer }) {
 
     return (
         <View style={styles.drawerContainer}>
+            {/* User switching */}
             <Text style={styles.sectionTitle}>Switch User</Text>
             {users.map((user) => (
                 <TouchableOpacity
@@ -143,7 +143,7 @@ function DrawerContent({ closeDrawer }) {
                         currentUser.id === user.id && styles.highlightedMenuItem,
                     ]}
                     onPress={() => {
-                        setCurrentUser(user); // Update current user with selected user object
+                        setCurrentUser(user);
                     }}
                 >
                     <Text
@@ -157,6 +157,7 @@ function DrawerContent({ closeDrawer }) {
                 </TouchableOpacity>
             ))}
 
+            {/* Household switching */}
             <Text style={styles.sectionTitle}>Switch Household</Text>
             {households.map((household) => (
                 <TouchableOpacity
@@ -183,7 +184,7 @@ function DrawerContent({ closeDrawer }) {
     );
 }
 
-// Drawer Navigator
+// Main app with drawer and tab navigation
 // Author: xmilis00
 export default function App() {
     return (
@@ -195,8 +196,8 @@ export default function App() {
                         <DrawerContent closeDrawer={() => navigation.closeDrawer()} />
                     )}
                     screenOptions={{
-                        gestureEnabled: false, // Disable gesture to open drawer
-                        headerShown: false, // Hide default headers for drawer screens
+                        gestureEnabled: false,
+                        headerShown: false,
                     }}
                 >
                     {/* Main tabs wrapped in the drawer */}

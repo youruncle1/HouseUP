@@ -51,13 +51,15 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
     },
     listTitle: {
-        fontSize: 18,
+        fontSize: 22,
         fontWeight: 'bold',
+        color:colors.secondary,
         flex: 1,
         paddingTop: 20,
     },
     listSettings: {
         padding: 10,
+        marginTop: 0,
     },
     settingsIcon: {
         color: 'black',
@@ -73,8 +75,15 @@ const styles = StyleSheet.create({
         marginVertical: 5,
         justifyContent: 'space-between',
     },
+    buttonHitbox: {
+        paddingVertical: 8,
+        //paddingHorizontal: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
     checkbox: {
-        width: 24,
+        width: 24, // Current visible checkbox size
         height: 24,
         borderRadius: 5,
         borderWidth: 2,
@@ -83,12 +92,13 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginRight: 10,
         marginLeft: 10,
-
     },
+
     itemName: {
         fontSize: 16,
         flex: 1,
-        padding: 15,
+        paddingVertical: 15,
+        paddingHorizontal: 8,
     },
     purchasedItemText: {
         textDecorationLine: 'line-through',
@@ -97,7 +107,7 @@ const styles = StyleSheet.create({
     itemQuantity: {
         fontSize: 16,
         textAlign: 'center',
-        width: 50,
+        width: 40,
         marginRight: 10,
     },
     profileImage: {
@@ -176,11 +186,11 @@ const styles = StyleSheet.create({
         flexShrink: 1,
     },
     sectionHeader: {
-        fontSize: 18,
+        fontSize: 22,
         fontWeight: "bold",
         marginTop: 20,
         marginHorizontal: 15,
-        color: colors.text,
+        color: colors.secondary,
     },
 
     //Switch styling
@@ -265,8 +275,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
     },
     settingListTitle: {
-        fontSize: 18,
+        fontSize: 22,
         fontWeight: 'bold',
+        color: colors.primary,
         flex: 1,
         marginTop:30,
     },

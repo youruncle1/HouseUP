@@ -6,10 +6,10 @@
  */
 import React, { createContext, useState, useContext } from 'react';
 
-// Create the Context
+// Create the context
 const AppContext = createContext();
 
-// Create a Provider component
+// Create a provider component
 export function AppProvider({ children }) {
     const [currentUser, setCurrentUser] = useState({
         id: 'user2@gmail.com',
@@ -38,7 +38,7 @@ export function AppProvider({ children }) {
     );
 }
 
-// Custom Hook to Use the Context
+// Custom hook to use the context
 export function useAppContext() {
     return useContext(AppContext);
 }

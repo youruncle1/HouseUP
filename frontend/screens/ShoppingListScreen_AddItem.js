@@ -111,10 +111,12 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
         <View style={styles.additemContainer}>
             {/* Add (plus) button */}
             <TouchableOpacity
-                style={styles.plusButton}
+                style={styles.buttonHitbox}
                 onPress={() => incrementQuantity(index)}
             >
-                <Ionicons name="add" size={16} color="white" />
+                <View style={styles.plusButton}>
+                    <Ionicons name="add" size={16} color="white" />
+                </View>
             </TouchableOpacity>
             {/* Item name */}
             <Text style={styles.itemName}>{item.name}</Text>
@@ -135,10 +137,12 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
         <View style={styles.additemContainer}>
             {/* Add (plus) button */}
             <TouchableOpacity
-                style={styles.plusButton}
+                style={styles.buttonHitbox}
                 onPress={() => incrementQuantity(index, "favorites")}
             >
-                <Ionicons name="add" size={16} color="white" />
+                <View style={styles.plusButton}>
+                    <Ionicons name="add" size={16} color="white" />
+                </View>
             </TouchableOpacity>
             {/* Item name */}
             <Text style={styles.itemName}>{item.name}</Text>
@@ -202,8 +206,13 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
                         {/* Temporary item */}
                         {tempItem && (
                             <View style={styles.additemContainer}>
-                                <TouchableOpacity style={styles.plusButton} onPress={finalizeItem}>
-                                    <Ionicons name="add" size={16} color="white" />
+                                <TouchableOpacity
+                                    style={styles.buttonHitbox}
+                                    onPress={finalizeItem}
+                                >
+                                    <View style={styles.plusButton}>
+                                        <Ionicons name="add" size={16} color="white" />
+                                    </View>
                                 </TouchableOpacity>
                                 <Text style={styles.itemName}>{tempItem.name}</Text>
                                 <Text style={styles.itemQuantity}>{tempItem.quantity}</Text>

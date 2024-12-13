@@ -1,5 +1,10 @@
+/**
+ * @file index.js
+ * @brief Entry point for the backend server. Sets up the Express application, middleware, routes, and scheduled tasks. Includes Firebase integration for database operations.
+ * @author Roman Poliačik <xpolia05@stud.fit.vutbr.cz>
+ * @date 12.12.2024
+ */
 // backend/index.js
-
 const express = require('express');
 const cors = require('cors');
 const cron = require('node-cron');
