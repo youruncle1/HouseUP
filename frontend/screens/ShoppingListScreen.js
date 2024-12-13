@@ -162,8 +162,7 @@ export default function ShoppingListScreen({ navigation }) {
             }
         }
     };
-
-    // Create 1-N debt for a purchased item
+// Create 1-N debt for a purchased item
     const handleGroupDebtSubmit = async () => {
         if (priceInput && !isNaN(Number(priceInput))) {
             const parsedPrice = parseFloat(priceInput);
@@ -176,30 +175,32 @@ export default function ShoppingListScreen({ navigation }) {
                 // Calculate individual contribution
                 const individualDebtAmount = parsedPrice / householdUsers.length;
 
-                // Exclude member who purchased the item from debt contributors
-                const contributors = householdUsers.filter(user => user.id !== currentUser.id);
+                // Include all members as contributors
+                const contributors = householdUsers.map(user => user.id);
 
                 // Step 2: Create a transaction
                 const transactionResponse = await api.post('/shopping-list/transactions', {
                     householdId: currentHousehold.id,
                     creditor: currentUser.id,
-                    participants: contributors.map(user => user.id),
+                    participants: contributors,
                     amount: parsedPrice,
                     description: `Debt for purchasing ${currentItem.name}`,
                 });
 
                 const transactionId = transactionResponse.data.id;
 
-                // Step 3: Create debts for each member of household (without member who purchased item)
+                // Step 3: Create debts for all contributors except the purchaser
                 for (const contributor of contributors) {
-                    await api.post('/shopping-list/debts', {
-                        amount: individualDebtAmount,
-                        creditor: currentUser.id,
-                        debtor: contributor.id,
-                        householdId: currentHousehold.id,
-                        relatedTransactionId: transactionId,
-                        isSettled: false,
-                    });
+                    if (contributor !== currentUser.id) {
+                        await api.post('/shopping-list/debts', {
+                            amount: individualDebtAmount,
+                            creditor: currentUser.id,
+                            debtor: contributor,
+                            householdId: currentHousehold.id,
+                            relatedTransactionId: transactionId,
+                            isSettled: false,
+                        });
+                    }
                 }
 
                 console.log('Group debts and transaction created successfully!');
@@ -220,6 +221,7 @@ export default function ShoppingListScreen({ navigation }) {
             }
         }
     };
+
 
 
     // Delete item from shopping list
