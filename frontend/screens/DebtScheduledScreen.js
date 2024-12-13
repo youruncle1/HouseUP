@@ -118,21 +118,25 @@ export default function DebtScheduledScreen({ navigation }) {
     // render modal for recurring
     const renderModalContent = () => {
         if (!selectedItem) return null;
+
         const creditorName = getUserName(selectedItem.creditor);
         const amountStr = `Kč ${Number(selectedItem.amount).toFixed(2)}`;
-        const participantsNames = selectedItem.participants.map(pid => getUserName(pid)).join(', ');
+        const numParticipants = selectedItem.participants.length;
+        const individualShare = numParticipants > 0 ? selectedItem.amount / numParticipants : 0;
+        const participantShares = selectedItem.participants.map(pid => ({
+            name: getUserName(pid),
+            share: individualShare
+        }));
 
         return (
             <View style={styles.modalContent}>
-                {/* Header */}
-                <View style={styles.modalHeader}>
+                <View style={[styles.modalHeader, { justifyContent: 'center', alignItems: 'center' }]}>
                     <Ionicons name="repeat-outline" size={28} color={colors.primary} style={{ marginRight: 10 }} />
                     <Text style={styles.modalTitle}>Recurring Payment Details</Text>
                 </View>
 
                 <View style={styles.modalDivider} />
 
-                {/* Info */}
                 <View style={styles.modalInfoRow}>
                     <Text style={styles.modalInfoLabel}>Creditor:</Text>
                     <Text style={styles.modalInfoValue}>{creditorName}</Text>
@@ -141,10 +145,17 @@ export default function DebtScheduledScreen({ navigation }) {
                     <Text style={styles.modalInfoLabel}>Amount:</Text>
                     <Text style={styles.modalInfoValue}>{amountStr}</Text>
                 </View>
-                <View style={styles.modalInfoRow}>
-                    <Text style={styles.modalInfoLabel}>Participants:</Text>
-                    <Text style={styles.modalInfoValue}>{participantsNames}</Text>
-                </View>
+
+                {participantShares.map((p, index) => (
+                    <View style={styles.modalInfoRow} key={index}>
+                        <Text style={styles.modalInfoLabel}>
+                            {index === 0 ? 'Participants:' : ' '}
+                        </Text>
+                        <Text style={styles.modalInfoValue}>
+                            {p.name} (Kč {p.share.toFixed(2)})
+                        </Text>
+                    </View>
+                ))}
 
                 {selectedItem.description ? (
                     <View style={styles.modalInfoRow}>
@@ -170,7 +181,6 @@ export default function DebtScheduledScreen({ navigation }) {
 
                 <View style={[styles.modalDivider, { marginTop: 20 }]} />
 
-                {/* Buttons */}
                 <View style={styles.modalButtonsContainer}>
                     <TouchableOpacity style={styles.modalButton} onPress={handleEdit}>
                         <Ionicons name="create-outline" size={20} color={colors.primary} style={{ marginRight: 5 }} />

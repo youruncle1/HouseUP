@@ -4,6 +4,7 @@
  * @author Roman Poliačik <xpolia05@stud.fit.vutbr.cz>
  * @date 13.12.2024
  */
+// In DebtScreen.js
 import React, { useState, useEffect } from 'react';
 import {
     View,
@@ -15,7 +16,9 @@ import {
     KeyboardAvoidingView,
     ScrollView,
     Platform,
-    Modal, Image,
+    Modal,
+    Image,
+    TextInput
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -27,18 +30,27 @@ export default function DebtScreen() {
     const navigation = useNavigation();
     const { currentHousehold, currentUser } = useAppContext();
 
-    // states for data and modals
+    // states for household members, debts, transactions
     const [householdMembers, setHouseholdMembers] = useState([]);
     const [debts, setDebts] = useState([]);
     const [transactions, setTransactions] = useState([]);
     const [recurringTransactions, setRecurringTransactions] = useState([]);
+
+    // modal states for transaction details
     const [showModal, setShowModal] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
     const [selectedItemIsRecurring, setSelectedItemIsRecurring] = useState(false);
     const [canEdit, setCanEdit] = useState(true);
     const [cannotEditReason, setCannotEditReason] = useState('');
 
-    // refetch data when focusing screen
+    // states for settlement modals
+    const [showSettleOptionsModal, setShowSettleOptionsModal] = useState(false);
+    const [showPartialInputModal, setShowPartialInputModal] = useState(false);
+    const [partialAmount, setPartialAmount] = useState('');
+    const [selectedDebt, setSelectedDebt] = useState(null);
+    const [maxDebtAmount, setMaxDebtAmount] = useState(0);
+
+    // refetch data when focused
     useFocusEffect(
         React.useCallback(() => {
             if (currentHousehold?.id) {
@@ -47,54 +59,47 @@ export default function DebtScreen() {
         }, [currentHousehold])
     );
 
-    // fetch members, debts, transactions, recurring/scheduled transactions
     const fetchData = async () => {
         try {
-            // fetch users in household
+            // load household members
             const usersRes = await api.get(`/users?householdId=${currentHousehold.id}`);
             const members = usersRes.data;
             setHouseholdMembers(members);
 
-            // fetch debts and aggregate them + create mapping debtor -> creditor
+            // load all debts for this household
             const debtsRes = await api.get(`/debts?householdId=${currentHousehold.id}`);
             const rawDebts = debtsRes.data;
 
+            // join and sum debts by debtor->creditor
             const aggregated = {};
             rawDebts.forEach(d => {
                 const key = `${d.debtor}->${d.creditor}`;
-                if (!aggregated[key]) {
-                    aggregated[key] = 0;
-                }
+                if (!aggregated[key]) aggregated[key] = 0;
                 aggregated[key] += d.amount;
             });
 
+            // convert map into an array
             const aggregatedDebts = Object.keys(aggregated).map(key => {
                 const [debtor, creditor] = key.split('->');
                 return { debtor, creditor, amount: aggregated[key] };
             });
             setDebts(aggregatedDebts);
 
-            // fetch transactions (normal)
+            // load transactions
             const transRes = await api.get(`/transactions?householdId=${currentHousehold.id}`);
             let allTransactions = transRes.data;
+            // sort by date descending(newest first)
             allTransactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-            // filter out recurring
+            // filter out recurring transactions
             const normalTransactions = allTransactions.filter(t => !t.isRecurring);
-
             setTransactions(normalTransactions);
 
-            // fetch recurring transactions and sort by next payment date
+            // load recurring transactions
             const recurringRes = await api.get(`/transactions/recurring?householdId=${currentHousehold.id}`);
             const allRecurring = recurringRes.data;
             const filteredRecurring = allRecurring
                 .filter(rt => rt.nextPaymentDate && new Date(rt.nextPaymentDate).getTime())
-                .map(rt => {
-                    return {
-                        ...rt,
-                        nextPaymentDateObj: new Date(rt.nextPaymentDate)
-                    };
-                });
+                .map(rt => ({ ...rt, nextPaymentDateObj: new Date(rt.nextPaymentDate) }));
 
             filteredRecurring.sort((a, b) => a.nextPaymentDateObj - b.nextPaymentDateObj);
             setRecurringTransactions(filteredRecurring);
@@ -103,17 +108,19 @@ export default function DebtScreen() {
         }
     };
 
+    // get username by id
     const getUserName = (userId) => {
         const member = householdMembers.find(m => m.id === userId);
         return member ? member.name : userId;
     };
 
+    // get userprofilepic by id
     const getUserImage = (userId) => {
         const member = householdMembers.find(m => m.id === userId);
         return member?.profileImage || 'https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg';
     };
 
-    // close info modal and reset states
+    // close transaction modal + reset states
     const closeModal = () => {
         setShowModal(false);
         setSelectedItem(null);
@@ -122,7 +129,7 @@ export default function DebtScreen() {
         setCannotEditReason('');
     };
 
-    // handle edit button press(if edit allowed)
+    // handle edit navigation (after can-edit)
     const handleEdit = () => {
         if (!canEdit) {
             Alert.alert('Cannot Edit', cannotEditReason || 'This transaction cannot be edited.');
@@ -132,7 +139,7 @@ export default function DebtScreen() {
         closeModal();
     };
 
-    // handle delete button press
+    // handle transaction delete
     const handleDelete = async () => {
         Alert.alert(
             'Delete',
@@ -157,7 +164,7 @@ export default function DebtScreen() {
         );
     };
 
-    // check if transaction can be edited using api
+    // fetch if transaction can be edited
     const fetchCanEdit = async (transactionId) => {
         try {
             const res = await api.get(`/transactions/${transactionId}/can-edit`);
@@ -175,24 +182,24 @@ export default function DebtScreen() {
         }
     };
 
-    // open modal for a normal transaction
+    // show transaction details modal
     const onTransactionPress = async (item) => {
         setSelectedItem(item);
         setSelectedItemIsRecurring(false);
 
         if (item.isSettlement) {
-            // Settlement transaction cant be edited
+            // settlement transactions cannot be edited
             setCanEdit(false);
             setCannotEditReason('This is a settlement transaction and cannot be edited.');
         } else {
-            // Normal transaction - check can-edit
+            // normal transaction, check if it can be edited
             await fetchCanEdit(item.id);
         }
 
         setShowModal(true);
     };
 
-    // open modal for a recurring transaction
+    // show recurring trans details
     const onRecurringPress = (item) => {
         setSelectedItem(item);
         setSelectedItemIsRecurring(true);
@@ -201,14 +208,104 @@ export default function DebtScreen() {
         setShowModal(true);
     };
 
-    // render details, edit, delete buttons
+    // modal settlement
+    const showSettleOptions = (debtItem) => {
+        setSelectedDebt(debtItem);
+        setMaxDebtAmount(debtItem.amount);
+        setShowSettleOptionsModal(true);
+    };
+
+    // handle full settlement and alert user
+    const handleFullSettlement = () => {
+        Alert.alert(
+            'Confirm Full Settlement',
+            'Are you sure you want to fully settle this debt?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Yes',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setShowSettleOptionsModal(false);
+                        try {
+                            await api.post('/debts/settle', {
+                                debtor: selectedDebt.debtor,
+                                creditor: selectedDebt.creditor,
+                                householdId: currentHousehold.id
+                            });
+                            setSelectedDebt(null);
+                            fetchData();
+                        } catch (error) {
+                            console.error('Error settling debt:', error);
+                        }
+                    },
+                },
+            ],
+            { cancelable: false }
+        );
+    };
+
+    // partial settlement, close options modal and show input modal
+    const handlePartialSettlementPress = () => {
+        setShowSettleOptionsModal(false);
+        setPartialAmount('');
+        setTimeout(() => {
+            setShowPartialInputModal(true);
+        }, 500); // small delay to avoid modal conflicts
+    };
+
+    // handle partial settlement
+    const handlePartialConfirm = async () => {
+        // if keyboard has , instead of .
+        const normalizedInput = partialAmount.replace(',', '.');
+        const partial = parseFloat(normalizedInput);
+        if (isNaN(partial) || partial <= 0 || partial > maxDebtAmount) {
+            Alert.alert('Invalid Amount', 'Please enter a valid partial amount.');
+            return;
+        }
+        setShowPartialInputModal(false);
+
+        try {
+            // partial settlement with amount
+            await api.post('/debts/settle', {
+                debtor: selectedDebt.debtor,
+                creditor: selectedDebt.creditor,
+                householdId: currentHousehold.id,
+                amount: partial
+            });
+            setSelectedDebt(null);
+            fetchData();
+        } catch (error) {
+            console.error('Error doing partial settlement:', error);
+        }
+    };
+
+    // close partial modal
+    const handlePartialCancel = () => {
+        setShowPartialInputModal(false);
+        setSelectedDebt(null);
+    };
+
+    // settlement modal
+    const settleDebt = (debtItem) => {
+        showSettleOptions(debtItem);
+    };
+
+    // render transaction details modal
     const renderModalContent = () => {
         if (!selectedItem) return null;
+
         const creditorName = getUserName(selectedItem.creditor);
         const amountStr = `Kč ${Number(selectedItem.amount).toFixed(2)}`;
-        const participantsNames = selectedItem.participants.map(pid => getUserName(pid)).join(', ');
 
-        // changes icon based on recurring/transaction
+        // calculate share per participant and make array
+        const numParticipants = selectedItem.participants.length;
+        const individualShare = numParticipants > 0 ? selectedItem.amount / numParticipants : 0;
+        const participantShares = selectedItem.participants.map(pid => ({
+            name: getUserName(pid),
+            share: individualShare
+        }));
+
         const title = selectedItemIsRecurring ? 'Recurring Payment Details' : 'Transaction Details';
         const iconName = selectedItemIsRecurring ? 'repeat-outline' : 'receipt-outline';
 
@@ -222,22 +319,31 @@ export default function DebtScreen() {
 
                 <View style={styles.modalDivider} />
 
-                {/* Info */}
+                {/* Creditor */}
                 <View style={styles.modalInfoRow}>
                     <Text style={styles.modalInfoLabel}>Creditor:</Text>
                     <Text style={styles.modalInfoValue}>{creditorName}</Text>
                 </View>
 
+                {/* Amount*/}
                 <View style={styles.modalInfoRow}>
                     <Text style={styles.modalInfoLabel}>Amount:</Text>
                     <Text style={styles.modalInfoValue}>{amountStr}</Text>
                 </View>
 
-                <View style={styles.modalInfoRow}>
-                    <Text style={styles.modalInfoLabel}>Participants:</Text>
-                    <Text style={styles.modalInfoValue}>{participantsNames}</Text>
-                </View>
+                {/* Participants  */}
+                {participantShares.map((p, index) => (
+                    <View style={styles.modalInfoRow} key={index}>
+                         <Text style={styles.modalInfoLabel}>
+                            {index === 0 ? 'Participants:' : ' '} {/* shows label only on first index*/}
+                        </Text>
+                        <Text style={styles.modalInfoValue}>
+                            {p.name} (Kč {p.share.toFixed(2)})
+                        </Text>
+                    </View>
+                ))}
 
+                {/* Description */}
                 {selectedItem.description ? (
                     <View style={styles.modalInfoRow}>
                         <Text style={styles.modalInfoLabel}>Description:</Text>
@@ -245,13 +351,15 @@ export default function DebtScreen() {
                     </View>
                 ) : null}
 
-                {/* recurring info */}
+                {/* Recurring interval */}
                 {selectedItemIsRecurring && selectedItem.recurrenceInterval && (
                     <View style={styles.modalInfoRow}>
                         <Text style={styles.modalInfoLabel}>Interval:</Text>
                         <Text style={styles.modalInfoValue}>{selectedItem.recurrenceInterval}</Text>
                     </View>
                 )}
+
+                {/* Next payment date */}
                 {selectedItemIsRecurring && selectedItem.nextPaymentDate && (
                     <View style={styles.modalInfoRow}>
                         <Text style={styles.modalInfoLabel}>Next Payment:</Text>
@@ -261,7 +369,7 @@ export default function DebtScreen() {
                     </View>
                 )}
 
-                {/* normal transaction info */}
+                {/* Timestamp */}
                 {!selectedItemIsRecurring && selectedItem.timestamp && (
                     <View style={styles.modalInfoRow}>
                         <Text style={styles.modalInfoLabel}>Date:</Text>
@@ -273,7 +381,6 @@ export default function DebtScreen() {
 
                 <View style={[styles.modalDivider, { marginTop: 20 }]} />
 
-                {/* buttons */}
                 <View style={styles.modalButtonsContainer}>
                     {(!selectedItem.isSettlement || selectedItemIsRecurring) && (
                         <TouchableOpacity
@@ -312,34 +419,7 @@ export default function DebtScreen() {
         );
     };
 
-    // handle debt settle
-    const settleDebt = (debtItem) => {
-        Alert.alert(
-            'Settle Debt',
-            `Are you sure you want to settle all debts where ${getUserName(debtItem.debtor)} owes ${getUserName(debtItem.creditor)}?`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Yes',
-                    onPress: async () => {
-                        try {
-                            await api.post('/debts/settle', {
-                                debtor: debtItem.debtor,
-                                creditor: debtItem.creditor,
-                                householdId: currentHousehold.id
-                            });
-                            fetchData();
-                        } catch (error) {
-                            console.error('Error settling debt:', error);
-                        }
-                    },
-                },
-            ],
-            { cancelable: false }
-        );
-    };
-
-    // render transaction item (recent)
+    // render a single transaction item from transactions
     const renderTransactionItem = ({ item }) => {
         const dateObj = new Date(item.timestamp);
         const dateStr = dateObj.toLocaleDateString();
@@ -351,7 +431,6 @@ export default function DebtScreen() {
         return (
             <TouchableOpacity onPress={() => onTransactionPress(item)}>
                 <View style={styles.transactionItemRow}>
-                    {/* Left side - Profile pic desc\n datetime\n creditor */}
                     <View style={styles.transactionLeft}>
                         <Image
                             source={{ uri: getUserImage(item.creditor) }}
@@ -366,7 +445,6 @@ export default function DebtScreen() {
                         </View>
                     </View>
 
-                    {/* Right side - Amount\n participants images */}
                     <View style={styles.transactionRight}>
                         <Text style={styles.transactionAmount}>Kč {Number(item.amount).toFixed(2)}</Text>
                         <View style={styles.transactionParticipants}>
@@ -389,7 +467,6 @@ export default function DebtScreen() {
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-            {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
                     <Ionicons name="menu" size={24} color="white" />
@@ -410,59 +487,50 @@ export default function DebtScreen() {
                 style={styles.scrollContainer}
                 contentContainerStyle={{ paddingBottom: 100 }}
             >
-                {/* Debts Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Debts</Text>
-                    {
-                        debts.length === 0 ? (
-                            <Text style={styles.noDataText}>No outstanding debts.</Text>
-                        ) : (
-                            <FlatList
-                                data={debts}
-                                keyExtractor={(item) => `${item.debtor}->${item.creditor}`}
-                                renderItem={({ item }) => (
-                                    <TouchableOpacity onPress={() => settleDebt(item)}>
-                                        <View style={styles.debtItemRow}>
-                                            {/* Left - Profilepic Debtor */}
-                                            <View style={styles.debtorContainer}>
-                                                <Image
-                                                    source={{ uri: getUserImage(item.debtor) }}
-                                                    style={styles.userImage}
-                                                />
-                                                <View style={styles.debtorTextContainer}>
-                                                    <Text style={styles.debtorName}>{getUserName(item.debtor)}</Text>
-                                                    <Text style={styles.debtorAmount}>Kč {item.amount.toFixed(2)}</Text>
-                                                </View>
-                                            </View>
-
-                                            {/* Arrow */}
-                                            <Ionicons name="arrow-forward-outline" size={20} color="#333" style={{marginHorizontal:20}}/>
-
-                                            {/* Right side - Creditor */}
-                                            <View style={styles.creditorContainer}>
-                                                <Text style={styles.creditorName}>{getUserName(item.creditor)}</Text>
-                                                <Image
-                                                    source={{ uri: getUserImage(item.creditor) }}
-                                                    style={styles.userImage}
-                                                />
+                    {debts.length === 0 ? (
+                        <Text style={styles.noDataText}>No outstanding debts.</Text>
+                    ) : (
+                        <FlatList
+                            data={debts}
+                            keyExtractor={(item) => `${item.debtor}->${item.creditor}`}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity onPress={() => settleDebt(item)}>
+                                    <View style={styles.debtItemRow}>
+                                        <View style={styles.debtorContainer}>
+                                            <Image
+                                                source={{ uri: getUserImage(item.debtor) }}
+                                                style={styles.userImage}
+                                            />
+                                            <View style={styles.debtorTextContainer}>
+                                                <Text style={styles.debtorName}>{getUserName(item.debtor)}</Text>
+                                                <Text style={styles.debtorAmount}>Kč {item.amount.toFixed(2)}</Text>
                                             </View>
                                         </View>
-                                    </TouchableOpacity>
-                                )}
-                                scrollEnabled={false}
-                            />
-                        )
-                    }
+
+                                        <Ionicons name="arrow-forward-outline" size={20} color="#333" style={{ marginHorizontal:20 }}/>
+
+                                        <View style={styles.creditorContainer}>
+                                            <Text style={styles.creditorName}>{getUserName(item.creditor)}</Text>
+                                            <Image
+                                                source={{ uri: getUserImage(item.creditor) }}
+                                                style={styles.userImage}
+                                            />
+                                        </View>
+                                    </View>
+                                </TouchableOpacity>
+                            )}
+                            scrollEnabled={false}
+                        />
+                    )}
                 </View>
 
-                {/* Upcoming Scheduled Payments Section */}
                 {recurringTransactions.length > 0 && (
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Upcoming Scheduled Payment</Text>
                         <TouchableOpacity onPress={() => onRecurringPress(recurringTransactions[0])}>
                             <View style={styles.recurringItemRow}>
-
-                                {/* Left Side - Date\n Description */}
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.recurrenceDate}>
                                         {new Date(recurringTransactions[0].nextPaymentDate).toLocaleDateString()}
@@ -471,8 +539,6 @@ export default function DebtScreen() {
                                         "{recurringTransactions[0].description || 'Not described'}"
                                     </Text>
                                 </View>
-
-                                {/* Right Side - Amount */}
                                 <View style={{ justifyContent: 'center', alignItems: 'flex-end' }}>
                                     <Text style={styles.recurrenceAmount}>
                                         Kč {Number(recurringTransactions[0].amount).toFixed(2)}
@@ -492,7 +558,6 @@ export default function DebtScreen() {
                     </View>
                 )}
 
-                {/* Recent Transactions */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Recent Transactions</Text>
                     {transactions.length === 0 ? (
@@ -519,7 +584,6 @@ export default function DebtScreen() {
                 </View>
             </ScrollView>
 
-            {/* Add button */}
             <TouchableOpacity
                 style={styles.addButton}
                 onPress={() => navigation.navigate('DebtForm', { mode: 'add' })}
@@ -527,7 +591,7 @@ export default function DebtScreen() {
                 <Ionicons name="add" size={36} color="white" />
             </TouchableOpacity>
 
-            {/* Modal PopUp */}
+            {/* Transactions info modal */}
             <Modal
                 transparent={true}
                 visible={showModal}
@@ -542,9 +606,91 @@ export default function DebtScreen() {
                     <TouchableOpacity
                         style={styles.modalContainer}
                         activeOpacity={1}
-                        onPress={() => {}}
                     >
                         {renderModalContent()}
+                    </TouchableOpacity>
+                </TouchableOpacity>
+            </Modal>
+
+            {/* Settlemenet Modal */}
+            <Modal
+                transparent={true}
+                visible={showSettleOptionsModal}
+                animationType="fade"
+                onRequestClose={() => setShowSettleOptionsModal(false)}
+            >
+                <TouchableOpacity
+                    style={styles.modalBackground}
+                    activeOpacity={1}
+                    onPress={() => setShowSettleOptionsModal(false)}
+                >
+                    <TouchableOpacity
+                        style={styles.modalContainer}
+                        activeOpacity={1}
+                    >
+                        <Text style={styles.modalTitle}>Settle this Debt</Text>
+                        <Text style={{textAlign:'center', fontStyle: 'italic', marginTop:10, marginBottom: 2}}>Total owed:</Text>
+                        <Text style={styles.modalSettleAmount}>{maxDebtAmount.toFixed(2)} Kč </Text>
+                        <View style={styles.modalButtonsContainer}>
+                            <TouchableOpacity style={styles.modalButton} onPress={handleFullSettlement}>
+                                <Ionicons name="checkmark-circle-outline" size={20} color='green' style={{ marginRight:5 }}/>
+                                <Text style={[styles.modalButtonText, { color: 'green' }]}>Full</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.modalButton} onPress={handlePartialSettlementPress}>
+                                <Ionicons name="ellipse-outline" size={20} color='orange' style={{ marginRight:5 }}/>
+                                <Text style={[styles.modalButtonText, { color: 'orange' }]}>Partial</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.modalButton} onPress={() => setShowSettleOptionsModal(false)}>
+                                <Ionicons name="close-circle-outline" size={20} color={colors.primary} style={{ marginRight:5 }}/>
+                                <Text style={styles.modalButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </TouchableOpacity>
+                </TouchableOpacity>
+            </Modal>
+
+            {/* partial settlement modal */}
+            <Modal
+                transparent={true}
+                visible={showPartialInputModal}
+                animationType="fade"
+                onRequestClose={handlePartialCancel}
+            >
+                <TouchableOpacity
+                    style={styles.modalBackground}
+                    activeOpacity={1}
+                    onPress={handlePartialCancel}
+                >
+                    <TouchableOpacity
+                        style={styles.modalContainer}
+                        activeOpacity={1}
+                    >
+                        <Text style={styles.modalTitle}>Partial Settlement</Text>
+                        <Text style={{textAlign:'center', marginBottom:10}}>
+                            Enter amount (max {maxDebtAmount.toFixed(2)} Kč)
+                        </Text>
+                        <TextInput
+                            style={{
+                                borderWidth:1,
+                                borderColor:'#ccc',
+                                borderRadius:5,
+                                padding:15,
+                                fontSize:22,
+                            }}
+                            keyboardType="numeric"
+                            value={partialAmount}
+                            onChangeText={setPartialAmount}
+                        />
+                        <View style={styles.modalButtonsContainer}>
+                            <TouchableOpacity style={styles.modalButton} onPress={handlePartialConfirm}>
+                                <Ionicons name="checkmark-circle-outline" size={20} color='green' style={{ marginRight:5 }}/>
+                                <Text style={[styles.modalButtonText, { color: 'green' }]}>Confirm</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.modalButton} onPress={handlePartialCancel}>
+                                <Ionicons name="close-circle-outline" size={20} color={colors.primary} style={{ marginRight:5 }}/>
+                                <Text style={styles.modalButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                        </View>
                     </TouchableOpacity>
                 </TouchableOpacity>
             </Modal>
@@ -824,6 +970,12 @@ const styles = StyleSheet.create({
         fontSize: 16,
         marginVertical: 5,
         color: '#333',
+    },
+    modalSettleAmount: {
+        textAlign: 'center',
+        fontSize: 32,
+        fontWeight: 'bold',
+        color: colors.secondary,
     },
     modalButtonsContainer: {
         flexDirection: 'row',

@@ -37,19 +37,17 @@ router.get('/', async (req, res) => {
     }
 });
 
-// settle all debts from one user to another within a household
-// remove all debts from debtor->creditor, get sum, create a settlement transaction.
-// { debtor, creditor, householdId }
+// handles full and partial settlements between users
 router.post('/settle', async (req, res) => {
     console.log('Received POST request for /debts/settle with data:', req.body);
-    const { debtor, creditor, householdId } = req.body;
+    const { debtor, creditor, householdId, amount } = req.body;
 
     if (!debtor || !creditor || !householdId) {
-        return res.status(400).json({ error: 'Debtor, creditor, and householdId are required' });
+        return res.status(400).json({ error: 'Missing debtor, creditor, or householdId' });
     }
 
     try {
-        // find all debts where debtor owes creditor
+        // find all debts where "debtor" owes "creditor"
         const debtsRef = db.collection('debts')
             .where('debtor', '==', debtor)
             .where('creditor', '==', creditor)
@@ -57,35 +55,85 @@ router.post('/settle', async (req, res) => {
 
         const debtsSnapshot = await debtsRef.get();
         if (debtsSnapshot.empty) {
-            return res.status(404).json({ error: 'No debts found between these users in this household' });
+            return res.status(404).json({ error: 'No debts found' });
         }
 
-        // sum up and remove debts
+        // sum all found debts
         let totalAmount = 0;
-        const batch = db.batch();
         debtsSnapshot.forEach((doc) => {
             const data = doc.data();
             totalAmount += data.amount;
-            batch.delete(doc.ref); // remove the debt
         });
 
-        // create a settlement (isSettlement) transaction
-        const transactionRef = db.collection('transactions').doc();
-        const transactionData = {
-            creditor: debtor,  // debtor now pays off the old creditor
-            participants: [creditor],
-            amount: totalAmount,
-            description: "Debt Settled",
-            householdId,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            isSettlement: true
-        };
-        batch.set(transactionRef, transactionData);
+        const batch = db.batch();
 
-        await batch.commit();
+        // delete all existing debts for debtor->creditor
+        debtsSnapshot.forEach((doc) => batch.delete(doc.ref));
 
-        console.log(`Debts settled. Created settlement transaction with ID: ${transactionRef.id}`);
-        res.status(200).json({ message: 'Debts settled successfully', settlementTransactionId: transactionRef.id });
+        // determine how much to settle:
+        // if "amount" is not provided, its a full settlement
+        // if "amount" is provided, its a partial settlemenlt
+        const settlementAmount = amount == null ? totalAmount : parseFloat(amount);
+
+        // validate amount
+        if (isNaN(settlementAmount) || settlementAmount <= 0) {
+            return res.status(400).json({ error: 'Invalid amount' });
+        }
+
+        if (settlementAmount >= totalAmount) {
+            // partial-full OR full settlement
+            const transactionRef = db.collection('transactions').doc();
+            const transactionData = {
+                creditor: debtor, // debtor is now creditor
+                participants: [creditor],
+                amount: totalAmount,
+                description: "Debt Settled",
+                householdId,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                isSettlement: true
+            };
+            batch.set(transactionRef, transactionData);
+            await batch.commit();
+            console.log(`Settlement transaction: ${transactionRef.id}`);
+            return res.status(200).json({ message: 'Full settlement', settlementTransactionId: transactionRef.id });
+        } else {
+            // partial settlement (settlementamount < totalamount)
+            const settlementTransRef = db.collection('transactions').doc();
+            const settlementTransData = {
+                creditor: debtor,
+                participants: [creditor],
+                amount: settlementAmount,
+                description: "Partial Debt Settlement",
+                householdId,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                isSettlement: true
+            };
+            batch.set(settlementTransRef, settlementTransData);
+
+            // leftover after partial payment
+            const leftover = totalAmount - settlementAmount;
+
+            // create one new debt for the remaining amount owed
+            const newDebtRef = db.collection('debts').doc();
+            const newDebtData = {
+                creditor,
+                debtor,
+                amount: leftover,
+                householdId,
+                relatedTransactionId: null, //leftover no linked transaction
+                isSettled: false,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            };
+            batch.set(newDebtRef, newDebtData);
+            await batch.commit();
+            console.log(`Partial settlement done. Settlement: ${settlementTransRef.id}, leftover debt: ${newDebtRef.id}`);
+            return res.status(200).json({
+                message: 'Partial settlement successful',
+                settlementTransactionId: settlementTransRef.id,
+                leftoverDebtId: newDebtRef.id
+            });
+        }
+
     } catch (error) {
         console.error('Error settling debts:', error);
         res.status(500).json({ error: 'Internal Server Error' });
