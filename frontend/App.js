@@ -122,7 +122,7 @@ function DrawerContent({ closeDrawer }) {
     const { currentUser, setCurrentUser, currentHousehold, setCurrentHousehold } = useAppContext();
 
     const users = [
-        { id: 'user1@gmail.com', name: 'Denis', profileImage: 'https://upload.wikimedia.org/wikipedia/commons/4/43/Paul_Circle.png'},
+        { id: 'user1@gmail.com', name: 'Denis', profileImage: 'https://images.rawpixel.com/image_800/czNmcy1wcml2YXRlL3Jhd3BpeGVsX2ltYWdlcy93ZWJzaXRlX2NvbnRlbnQvbHIvcm0zMjgtMzY2LXRvbmctMDhfMS5qcGc.jpg'},
         { id: 'user2@gmail.com', name: 'Roman', profileImage: 'https://static.vecteezy.com/system/resources/thumbnails/035/544/575/small_2x/ai-generated-cheerful-black-man-looking-at-camera-isolated-on-transparent-background-african-american-male-person-portrait-png.png'},
         { id: 'user3@gmail.com', name: 'Robo',  profileImage: 'https://t3.ftcdn.net/jpg/02/22/85/16/360_F_222851624_jfoMGbJxwRi5AWGdPgXKSABMnzCQo9RN.jpg'},
     ];

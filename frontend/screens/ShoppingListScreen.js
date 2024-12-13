@@ -31,14 +31,20 @@ export default function ShoppingListScreen({ navigation }) {
     const [isModalVisible, setIsModalVisible] = useState(false); // State to manage the visibility of the modal for entering price
     const [priceInput, setPriceInput] = useState('');            // State to store the user's input for the item price in the modal
     const [currentItem, setCurrentItem] = useState(null);        // State to hold the currently selected item (used for modal)
-    const { currentHousehold, currentUser, showUserImages, hideCheckedItems } = useAppContext(); // Context values to manage tcurrent household, user and UI preferences
+    const { currentHousehold, currentUser, showUserImages, hideCheckedItems } = useAppContext(); // Context values to manage current household user and UI preferences
 
     // Fetch items when the screen is focused or the household changes
     useEffect(() => {
         if (isFocused || currentHousehold) {
-            fetchItems();
+            fetchItems()
+                .then(() => {})
+                .catch((error) => {
+                    console.error("Error fetching items:", error);
+                });
         }
     }, [isFocused, currentHousehold]);
+
+
 
     // Fetch shopping list items
     const fetchItems = async () => {
@@ -96,7 +102,7 @@ export default function ShoppingListScreen({ navigation }) {
                 console.log(`Item ${id} unmarked as purchased.`);
 
                 // Refresh the shopping list
-                fetchItems();
+                await fetchItems();
             } catch (error) {
                 console.error('Error unmarking purchased item or deleting transaction:', error);
             }
@@ -104,7 +110,7 @@ export default function ShoppingListScreen({ navigation }) {
             try {
                 // Directly unmark item if no transaction/debt is involved
                 await api.put(`/shopping-list/${id}`, { purchased: !currentState });
-                fetchItems(); // Refresh the list
+                await fetchItems(); // Refresh the list
             } catch (error) {
                 console.error('Error toggling purchased state:', error);
             }
@@ -113,7 +119,7 @@ export default function ShoppingListScreen({ navigation }) {
 
     // Create 1-1 debt for a purchased item
     const handleSingleDebtSubmit = async () => {
-        if (priceInput && !isNaN(priceInput)) {
+        if (priceInput && !isNaN(Number(priceInput))) {
             const parsedPrice = parseFloat(priceInput);
 
             try {
@@ -150,7 +156,7 @@ export default function ShoppingListScreen({ navigation }) {
                 setIsModalVisible(false);
                 setPriceInput('');
                 setCurrentItem(null);
-                fetchItems();
+                await fetchItems();
             } catch (error) {
                 console.error('Error creating debt or transaction:', error);
             }
@@ -159,7 +165,7 @@ export default function ShoppingListScreen({ navigation }) {
 
     // Create 1-N debt for a purchased item
     const handleGroupDebtSubmit = async () => {
-        if (priceInput && !isNaN(priceInput)) {
+        if (priceInput && !isNaN(Number(priceInput))) {
             const parsedPrice = parseFloat(priceInput);
 
             try {
@@ -208,7 +214,7 @@ export default function ShoppingListScreen({ navigation }) {
                 setIsModalVisible(false);
                 setPriceInput('');
                 setCurrentItem(null);
-                fetchItems();
+                await fetchItems();
             } catch (error) {
                 console.error('Error creating group debts or transaction:', error);
             }
@@ -229,7 +235,7 @@ export default function ShoppingListScreen({ navigation }) {
                     onPress: async () => {
                         try {
                             await api.delete(`/shopping-list/${id}`);
-                            fetchItems();
+                            await fetchItems();
                         } catch (error) {
                             console.error('Error deleting item:', error);
                         }
@@ -263,7 +269,7 @@ export default function ShoppingListScreen({ navigation }) {
             <Text style={styles.itemQuantity}>{item.quantity}</Text>
 
             {/* User profile pic */}
-            {showUserImages && (
+            {Boolean(showUserImages) && (
                 <Image
                     source={{
                         uri: users[item.createdBy],

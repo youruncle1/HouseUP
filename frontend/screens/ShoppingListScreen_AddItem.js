@@ -31,7 +31,7 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
 
     // Fetch favorite items when the component mounts
     useEffect(() => {
-        fetchFavorites();
+        fetchFavorites().then(() => {});
     }, []);
 
     // Fetch favorite items associated with the current household
@@ -186,6 +186,7 @@ export default function ShoppingListScreen_AddItem({ navigation }) {
         <View style={styles.container}>
             <FlatList
                 data={[]} // FlatList requires data, but there is no need it is just to make whole screen scrollable
+                renderItem={() => null}
                 keyExtractor={() => "dummy"}
                 ListHeaderComponent={
                     <>

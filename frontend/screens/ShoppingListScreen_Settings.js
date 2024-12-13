@@ -19,7 +19,7 @@ import api from "../services/api";
 import { useAppContext } from "../AppContext";
 
 // Main component for the Shopping List settings screen
-export default function ShoppingListScreen_Settings({ navigation }) {
+export default function ShoppingListScreen_Settings() {
     const [favorites, setFavorites] = useState([]);      // State for managing household favorite items
     const [newFavorite, setNewFavorite] = useState("");  // State for handling new favorite item input
     const [isEditMode, setIsEditMode] = useState(false); // State for toggling edit mode for favorites
@@ -43,7 +43,7 @@ export default function ShoppingListScreen_Settings({ navigation }) {
         }
     };
 
-    // Delete a item from the household's favorite list
+    // Delete an item from the household's favorite list
     const deleteFavorite = async (id) => {
         try {
             await api.delete(`/shopping-list/${currentHousehold.id}/favouriteShopItems/${id}`);
@@ -92,6 +92,7 @@ export default function ShoppingListScreen_Settings({ navigation }) {
         <View style={styles.container}>
             <FlatList
                 data={[]} // FlatList requires data, but there is no need it is just to make whole screen scrollable
+                renderItem={() => null}
                 keyExtractor={() => "dummy"}
                 ListHeaderComponent={
                     <>
@@ -161,8 +162,6 @@ export default function ShoppingListScreen_Settings({ navigation }) {
                     </>
                 }
             />
-
         </View>
     );
-
 }

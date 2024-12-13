@@ -101,6 +101,7 @@ const styles = StyleSheet.create({
         marginRight: 10,
     },
     profileImage: {
+        backgroundColor: '#7292e4',
         width: 40,
         height: 40,
         borderRadius: 20,
