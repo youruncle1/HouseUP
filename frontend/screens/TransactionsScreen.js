@@ -1,5 +1,5 @@
 /**
- * @file DebtScheduledScreen.js
+ * @file TransactionsScreen.js
  * @brief  Screen to list all household Transactions. Can view detailed info, edit or delete.
  * @author Roman Poliačik <xpolia05@stud.fit.vutbr.cz>
  * @date 13.12.2024
@@ -29,6 +29,7 @@ export default function TransactionsScreen({ navigation }) {
     const [transactions, setTransactions] = useState([]);
     const [householdMembers, setHouseholdMembers] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [totalSpent, setTotalSpent] = useState(0);
 
     // modal state, selected transaction
     const [showModal, setShowModal] = useState(false);
@@ -61,8 +62,10 @@ export default function TransactionsScreen({ navigation }) {
 
             // filter out recurring
             const normalTransactions = allTransactions.filter(t => !t.isRecurring);
-
             setTransactions(normalTransactions);
+
+            const totalAmountSpent = normalTransactions.reduce((sum, t) => sum + t.amount, 0);
+            setTotalSpent(totalAmountSpent);
         } catch (error) {
             console.error('Error fetching transactions:', error);
         } finally {
@@ -339,7 +342,7 @@ export default function TransactionsScreen({ navigation }) {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>All Transactions</Text>
+                <Text style={styles.headerTitle}>{`Total spent: Kč ${totalSpent.toFixed(2)}`}</Text>
             </View>
             {loading ? (
                 <ActivityIndicator style={{ marginTop: 20 }} size="large" color={colors.primary} />
