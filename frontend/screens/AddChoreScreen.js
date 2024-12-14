@@ -6,13 +6,14 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, Modal } from 'react-native';
 import { useAppContext } from '../AppContext';
 import api from '../services/api';
 import choresStyles from '../styles/ChoresStyles';
 import colors from '../styles/MainStyles';
 import RNPickerSelect from 'react-native-picker-select';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 // Helper function to generate the current week identifier in the format "Year-W#"
 function getCurrentWeekIdentifier() {
@@ -20,7 +21,7 @@ function getCurrentWeekIdentifier() {
     const year = now.getUTCFullYear();
     const oneJan = new Date(year, 0, 1);
     const numberOfDays = Math.floor((now - oneJan) / (24 * 60 * 60 * 1000));
-    const week = Math.ceil((numberOfDays + oneJan.getUTCDay() + 1)/7);
+    const week = Math.ceil((numberOfDays + oneJan.getUTCDay() + 1) / 7);
     return `${year}-W${week}`;
 }
 
@@ -31,9 +32,11 @@ export default function AddChoreScreen({ navigation }) {
     // State to toggle between immediate and scheduled chore forms
     const [isScheduled, setIsScheduled] = useState(false);
 
-    // State for scheduled (default) chore
+    // State for scheduled chore
     const [choreName, setChoreName] = useState('');
     const [frequencyDays, setFrequencyDays] = useState('');
+    const [startDate, setStartDate] = useState(new Date()); // Start date state
+    const [showDateModal, setShowDateModal] = useState(false); // Modal visibility
 
     // State for immediate chore
     const [newChore, setNewChore] = useState('');
@@ -55,25 +58,23 @@ export default function AddChoreScreen({ navigation }) {
     async function fetchUsers() {
         try {
             const res = await api.get('/users', {
-                params: { householdId: currentHousehold.id }
+                params: { householdId: currentHousehold.id },
             });
             const data = res.data;
-            // Update the user list
             setUsersList(data);
             if (data.length > 0) {
-                // Set the default selected user
                 setAssignedUserId(data[0].id);
             }
         } catch (error) {
             console.error('Error fetching users:', error);
         }
     }
-    
+
     // Fetch the default(scheduled) chores associated with the current household
     async function fetchDefaultChores() {
         try {
             const res = await api.get(`/households/${currentHousehold.id}/defaultChores`);
-            setDefaultChores(res.data);// Update the default chore list
+            setDefaultChores(res.data);
         } catch (error) {
             console.error('Error fetching default chores:', error);
         }
@@ -84,13 +85,15 @@ export default function AddChoreScreen({ navigation }) {
         if (!choreName.trim()) return;
         if (!frequencyDays.trim()) return;
         try {
-            await api.post(`/households/${currentHousehold.id}/defaultChores`, { 
+            await api.post(`/households/${currentHousehold.id}/defaultChores`, {
                 name: choreName,
-                frequencyDays: parseInt(frequencyDays, 10) || 7 // Default frequency to 7 days
+                frequencyDays: parseInt(frequencyDays, 10) || 7, // Default frequency to 7 days
+                startDate: startDate.toISOString(), // Include start date
             });
             setChoreName('');
             setFrequencyDays('7');
-            fetchDefaultChores(); // Refresh after adding
+            setStartDate(new Date());
+            fetchDefaultChores();
         } catch (error) {
             console.error('Error adding default chore:', error);
         }
@@ -104,7 +107,7 @@ export default function AddChoreScreen({ navigation }) {
                 name: newChore,
                 assignedTo: assignedUserId,
                 householdId: currentHousehold.id,
-                weekIdentifier: getCurrentWeekIdentifier()
+                weekIdentifier: getCurrentWeekIdentifier(),
             });
             setNewChore('');
             setAssignedUserId(usersList.length > 0 ? usersList[0].id : '');
@@ -126,7 +129,7 @@ export default function AddChoreScreen({ navigation }) {
                     onPress: async () => {
                         try {
                             await api.delete(`/households/${currentHousehold.id}/defaultChores/${choreId}`);
-                            fetchDefaultChores(); // Refresh the list after deletion
+                            fetchDefaultChores();
                         } catch (error) {
                             console.error('Error deleting default chore:', error);
                         }
@@ -176,21 +179,33 @@ export default function AddChoreScreen({ navigation }) {
                                 onChangeText={setFrequencyDays}
                                 keyboardType="numeric"
                             />
+
+                            {/* Start Date Picker */}
+                            <TouchableOpacity
+                                onPress={() => setShowDateModal(true)}
+                                style={choresStyles.datePickerButton}
+                            >
+                                <Text style={choresStyles.datePickerButtonText}>Start Date: {startDate.toLocaleDateString()}</Text>
+                            </TouchableOpacity>
+
                             <TouchableOpacity style={choresStyles.addButton} onPress={addDefaultChore}>
-                                <Text style={choresStyles.addButtonText}>Add scheduled chore</Text>
+                                <Text style={choresStyles.addButtonText}>Add Scheduled Chore</Text>
                             </TouchableOpacity>
                         </View>
 
-                        <Text style={[choresStyles.addChoreTitle, {marginTop:20}]}>Scheduled Chores</Text>
+                        <Text style={[choresStyles.addChoreTitle, { marginTop: 20 }]}>Scheduled Chores</Text>
                         {defaultChores.length === 0 ? (
                             <Text>No scheduled chores found.</Text>
                         ) : (
-                            defaultChores.map(chore => (
+                            defaultChores.map((chore) => (
                                 <View key={chore.id} style={choresStyles.ScheduledChore}>
                                     <Text style={choresStyles.scheduledchoreText}>
                                         {chore.name} ({chore.frequencyDays || 7} days)
                                     </Text>
-                                    <TouchableOpacity style={{marginLeft:'auto'}} onPress={() => deleteDefaultChore(chore.id)}>
+                                    <TouchableOpacity
+                                        style={{ marginLeft: 'auto' }}
+                                        onPress={() => deleteDefaultChore(chore.id)}
+                                    >
                                         <Ionicons name="trash-outline" size={24} color="red" />
                                     </TouchableOpacity>
                                 </View>
@@ -212,7 +227,7 @@ export default function AddChoreScreen({ navigation }) {
                                 <RNPickerSelect
                                     onValueChange={(itemValue) => setAssignedUserId(itemValue)}
                                     placeholder={{ label: 'Select a User', value: null }}
-                                    items={usersList.map(user => ({ label: user.name, value: user.id }))}
+                                    items={usersList.map((user) => ({ label: user.name, value: user.id }))}
                                     style={pickerSelectStyles}
                                     useNativeAndroidPickerStyle={false}
                                 />
@@ -227,6 +242,37 @@ export default function AddChoreScreen({ navigation }) {
                     </>
                 )}
             </ScrollView>
+
+            {/* Start Date Modal */}
+            <Modal
+                visible={showDateModal}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowDateModal(false)}
+            >
+                <View style={choresStyles.modalBackground}>
+                    <View style={choresStyles.modalContainer}>
+                        <Text style={choresStyles.modalTitle}>Select Start Date</Text>
+                        <DateTimePicker
+                            value={startDate}
+                            mode="date"
+                            display="default"
+                            onChange={(event, selectedDate) => {
+                                setShowDateModal(false); // Close the modal
+                                if (selectedDate) {
+                                    setStartDate(selectedDate);
+                                }
+                            }}
+                        />
+                        <TouchableOpacity
+                            style={choresStyles.modalCloseButton}
+                            onPress={() => setShowDateModal(false)}
+                        >
+                            <Text style={choresStyles.modalCloseButtonText}>Close</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -249,7 +295,7 @@ const pickerSelectStyles = StyleSheet.create({
         paddingHorizontal: 15,
         borderWidth: 1,
         borderColor: '#ddd',
-        backgroundColor:'#fff',
+        backgroundColor: '#fff',
         borderRadius: 5,
         color: '#555',
         marginBottom: 15,

@@ -35,6 +35,33 @@ async function generateDueChoresForAllHouseholds() {
             for (const choreDoc of defaultChoresSnapshot.docs) {
                 const { name, frequencyDays, lastGenerated } = choreDoc.data();
                 const lastGeneratedDate = lastGenerated?.toDate() || new Date(0);
+                const startDateDate = startDate?.toDate() || new Date(0);
+
+                // Ensure we only generate chores if the current date is after the start date
+                if (now >= startDateDate) {
+                    const diffDays = Math.floor((now - lastGeneratedDate) / (1000 * 60 * 60 * 24));
+                
+                    if (diffDays >= frequencyDays) {
+                        // Generate a new chore
+                        const newChore = {
+                            name,
+                            householdId,
+                            assignedTo: null, // Or assign to a specific user
+                            completed: false,
+                            timestamp: today,
+                            weekIdentifier: getCurrentWeekIdentifier(),
+                        };
+                    
+                        await db.collection('chores').add(newChore);
+                    
+                        // Update lastGenerated field
+                        await choreDoc.ref.update({
+                            lastGenerated: today,
+                        });
+                    
+                        console.log(`Generated new chore: ${name} for household ${householdId}`);
+                    }
+                }
 
                 // Calculate the difference in days since the last generation
                 const diffDays = Math.floor((now - lastGeneratedDate) / (1000 * 60 * 60 * 24));
@@ -144,6 +171,7 @@ router.post('/', async (req, res) => {
     console.log('Received POST request for /chores with data:', req.body);
     try {
         const assignedTo = req.body.assignedTo || null;
+        const startDate = req.body.startDate ? admin.firestore.Timestamp.fromDate(new Date(req.body.startDate)) : null;
         const choreData = {
             name: req.body.name,
             assignedTo: assignedTo,
@@ -152,7 +180,8 @@ router.post('/', async (req, res) => {
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             householdId: req.body.householdId || null,
             weekIdentifier: req.body.weekIdentifier || getCurrentWeekIdentifier(),
-        };
+            startDate, // Include the start date
+        };        
         const docRef = await db.collection('chores').add(choreData);
         console.log(`Added new chore with ID: ${docRef.id}`);
         res.status(201).json({ id: docRef.id, ...choreData });

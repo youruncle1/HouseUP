@@ -147,11 +147,6 @@ export default StyleSheet.create({
     statsContent: {
         padding: 10
     },
-    statsSectionHeader: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 10
-    },
     statsItem: {
         backgroundColor: '#DDD',
         padding: 10,
@@ -279,25 +274,27 @@ export default StyleSheet.create({
         color: 'white',
         marginTop: 5,
     },
-    statsHeader: {
-        flexDirection: 'row',
-        backgroundColor: '#6200EE',
-        alignItems: 'center',
-        paddingHorizontal: 10,
-        paddingVertical: 15,
-        justifyContent: 'space-between'
-    },
-    statsHeaderTitle: {
-        color: 'white',
-        fontWeight: 'bold',
-        fontSize: 18,
-    },
     statsSectionHeader: {
         fontSize: 20,
         fontWeight: 'bold',
         marginBottom: 10,
         marginTop: 20,
         alignSelf:'center',
-    }
+    },
 
+    datePickerButton: {
+        marginVertical:5,
+        paddingVertical: 10,
+        paddingHorizontal: 15,
+        backgroundColor: '#ccc', // Light variation of your primary color
+        borderRadius: 5,
+        alignItems: 'center',
+        borderColor:'#aaa',
+        borderWidth:2
+    },
+    
+    datePickerButtonText: {
+        color: 'black', // Your primary color for the text
+        fontSize: 16,
+    }, 
 });
