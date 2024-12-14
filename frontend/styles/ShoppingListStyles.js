@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     },
 
     checkbox: {
-        width: 24, // Current visible checkbox size
+        width: 24,
         height: 24,
         borderRadius: 5,
         borderWidth: 2,
@@ -399,13 +399,13 @@ const styles = StyleSheet.create({
 
     emptyListText1: {
         fontSize: 22,
-        color: "#7c7a7a", // Adjust based on your design
+        color: "#7c7a7a",
         textAlign: 'center',
     },
     emptyListText2: {
         fontSize: 16,
         marginTop: 15,
-        color: "#7c7a7a", // Adjust based on your design
+        color: "#7c7a7a",
         textAlign: 'center',
     },
 

@@ -18,18 +18,18 @@ const styles = StyleSheet.create({
         marginVertical: 2,
         paddingVertical: 8,
         paddingHorizontal: 15,
-        borderRadius: 15, // Rounded rectangle
+        borderRadius: 15,
     },
     menuText: {
         fontSize: 16,
         color: '#333',
     },
     highlightedMenuItem: {
-        backgroundColor: colors.primary, // Purple background for selected items
+        backgroundColor: colors.primary,
         borderRadius: 10,
     },
     highlightedMenuText: {
-        color: 'white', // White text for better contrast
+        color: 'white',
         fontWeight: 'bold',
     },
 });

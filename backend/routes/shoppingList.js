@@ -58,7 +58,7 @@ router.post('/', async (req, res) => {
     }
 
     try {
-        const batch = db.batch(); // Firestore batch operation
+        const batch = db.batch();
         items.forEach(item => {
             const itemRef = db.collection('shoppingList').doc();
             batch.set(itemRef, {
@@ -72,7 +72,7 @@ router.post('/', async (req, res) => {
             });
         });
 
-        await batch.commit(); // Execute the batch operation
+        await batch.commit();
         console.log(`${items.length} items added to householdId: ${householdId}`);
         res.status(201).json({ message: `${items.length} items added successfully` });
     } catch (error) {
