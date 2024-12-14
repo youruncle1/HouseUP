@@ -4,7 +4,6 @@
  * @author Roman Poliačik <xpolia05@stud.fit.vutbr.cz>
  * @date 12.12.2024
  */
-// backend/index.js
 const express = require('express');
 const cors = require('cors');
 const cron = require('node-cron');
@@ -13,15 +12,12 @@ const admin = require('firebase-admin');
 
 // Initialize Firebase Admin SDK
 const serviceAccount = require('./serviceAccountKey.json');
-
-// Initialize Firebase Admin SDK
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
 });
 console.log('Firebase initialized.');
 
 const db = admin.firestore();
-
 const app = express();
 const PORT = 3000;
 
@@ -53,7 +49,7 @@ cron.schedule('0 0 * * *', async () => {
     console.log('Running daily cron jobs at midnight...');
 
     try {
-        // Process recurring transactions
+        // Process recurring transactions at midnight
         await processDueRecurringTransactions();
         console.log('Recurring transactions processed.');
     } catch (err) {

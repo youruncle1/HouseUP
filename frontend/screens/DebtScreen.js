@@ -4,7 +4,6 @@
  * @author Roman Poliačik <xpolia05@stud.fit.vutbr.cz>
  * @date 13.12.2024
  */
-// In DebtScreen.js
 import React, { useState, useEffect } from 'react';
 import {
     View,

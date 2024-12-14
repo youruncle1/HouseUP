@@ -8,7 +8,6 @@
  * @date 12.12.2024
  */
 
-// Required imports for React components, navigation libraries, and app context
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native'; // Container for navigation
 import { createNativeStackNavigator } from '@react-navigation/native-stack'; // Stack navigator
@@ -74,7 +73,6 @@ function DebtStack() {
             <Stack.Screen name="DebtForm" component={DebtFormScreen} options={{ title: 'Debt Form' }} />
             <Stack.Screen name="DebtScheduled" component={DebtScheduledScreen} options={{ title: 'Scheduled Debts' }} />
             <Stack.Screen name="Transactions" component={TransactionsScreen} options={{ title: 'Transactions' }}/>
-            {/* Additional screens for Debt can go here */}
         </Stack.Navigator>
     );
 }
@@ -167,7 +165,7 @@ function DrawerContent() {
                         currentHousehold.id === household.id && styles.highlightedMenuItem,
                     ]}
                     onPress={() => {
-                        setCurrentHousehold(household); // Update current household with selected household object
+                        setCurrentHousehold(household);
                     }}
                 >
                     <Text
