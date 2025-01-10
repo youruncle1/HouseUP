@@ -9,11 +9,13 @@ HouseUP is a mobile application designed to streamline household management for 
 - Add one-time and recurring tasks.
 - Automatic and fair task distribution among household members.
 - Task statistics showing the number of completed tasks per user.
+
 **Shared Shopping List**
 - Add, mark, and delete items in the shopping list.
 - Create favorite items in household
 - Track who added or purchased an item.
 - Automatically generate debts based on purchased items.
+
 **Finance Management**
 - Track shared expenses and debts among household members.
 - Add one-time, recurring, and planned expenses.
