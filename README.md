@@ -29,3 +29,11 @@ HouseUP is a mobile application designed to streamline household management for 
 Frontend: React Native, Axios for API requests
 Backend: Node.js, Express
 Database: Firebase Firestore
+
+---
+
+## 👤 Authors
+
+- Roman Poliacik
+- Denis Milistenfer
+- Robert Zelnicek
